@@ -25,6 +25,9 @@
 
 	<ItemGroup>
 		<EmbeddedResource CopyToOutputDirectory="never" Include="..\Assets\Assets.zip" Link="ERModsMergerAssets\%(RecursiveDir)%(Filename)%(Extension)" />
+		<EmbeddedResource Include="..\Assets\ParamDefs\EquipParamProtector.xml">
+			<LogicalName>ERModsMerger.Core.ERModsMergerParamDefOverrides.EquipParamProtector.xml</LogicalName>
+		</EmbeddedResource>
 	</ItemGroup>
 
 
