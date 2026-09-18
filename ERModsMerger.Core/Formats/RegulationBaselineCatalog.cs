@@ -1,18 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace ERModsMerger.Core.Formats
 {
     /// <summary>
     /// Indexes exact-version vanilla regulation.bin files without relying on filenames.
-    /// Historical game data is intentionally not redistributed with ERModsMerger.
+    /// Bundled baselines are loaded from extracted Assets/Regulations; user baselines may
+    /// supplement or override historical versions under VanillaRegulations.
     /// </summary>
     internal static class RegulationBaselineCatalog
     {
-        public static string BaselineFolderPath => Path.Combine(
+        public static string BundledBaselineFolderPath => Path.Combine(
+            ModsMergerConfig.LoadedConfig!.AppDataFolderPath,
+            "Regulations");
+
+        public static string UserBaselineFolderPath => Path.Combine(
             ModsMergerConfig.LoadedConfig!.AppDataFolderPath,
             "VanillaRegulations");
+
+        public static string BaselineFolderPath => UserBaselineFolderPath;
 
         public static Dictionary<ulong, string> Build(
             string currentGameRegulationPath,
@@ -24,35 +32,63 @@ namespace ERModsMerger.Core.Formats
                 [currentGameVersion] = currentGameRegulationPath
             };
 
-            Directory.CreateDirectory(BaselineFolderPath);
-            string currentFullPath = Path.GetFullPath(currentGameRegulationPath);
+            Directory.CreateDirectory(BundledBaselineFolderPath);
+            Directory.CreateDirectory(UserBaselineFolderPath);
 
-            foreach (string candidate in Directory.EnumerateFiles(
-                         BaselineFolderPath,
-                         "*.bin",
-                         SearchOption.AllDirectories))
+            IndexFolder(BundledBaselineFolderPath, result, currentGameVersion, overwriteHistorical: false, mainLog);
+            IndexFolder(UserBaselineFolderPath, result, currentGameVersion, overwriteHistorical: true, mainLog);
+
+            mainLog.AddSubLog(
+                $"Indexed {result.Count} vanilla regulation version(s). " +
+                $"Bundled: {BundledBaselineFolderPath}; user overrides: {UserBaselineFolderPath}");
+
+            return result;
+        }
+
+        private static void IndexFolder(
+            string folder,
+            Dictionary<ulong, string> result,
+            ulong currentGameVersion,
+            bool overwriteHistorical,
+            LOG mainLog)
+        {
+            foreach (string candidate in Directory.EnumerateFiles(folder, "*.bin", SearchOption.AllDirectories)
+                                                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
                 try
                 {
-                    if (string.Equals(Path.GetFullPath(candidate), currentFullPath, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
                     if (!RegulationBin.TryReadVersion(candidate, out ulong version))
                         continue;
 
-                    // Current installed vanilla always wins for the active version. For historical
-                    // duplicates, keep the first file found; the raw BND version is the authority.
-                    result.TryAdd(version, candidate);
+                    if (version == currentGameVersion)
+                        continue;
+
+                    if (result.TryGetValue(version, out string? existing))
+                    {
+                        if (overwriteHistorical)
+                        {
+                            mainLog.AddSubLog(
+                                $"Baseline override for {Utils.ParseParamVersion(version)} ({version}): {candidate}",
+                                LOGTYPE.WARNING);
+                            result[version] = candidate;
+                        }
+                        else
+                        {
+                            mainLog.AddSubLog(
+                                $"Duplicate bundled baseline for {Utils.ParseParamVersion(version)} ({version}); keeping {existing}",
+                                LOGTYPE.WARNING);
+                        }
+
+                        continue;
+                    }
+
+                    result.Add(version, candidate);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore unrelated/corrupt .bin files in the baseline directory.
+                    mainLog.AddSubLog($"Ignored baseline {candidate}: {ex.Message}", LOGTYPE.WARNING);
                 }
             }
-
-            mainLog.AddSubLog(
-                $"Indexed {result.Count} vanilla regulation version(s). Historical baseline folder: {BaselineFolderPath}");
-            return result;
         }
     }
 }
