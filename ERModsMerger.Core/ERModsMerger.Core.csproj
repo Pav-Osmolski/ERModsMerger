@@ -28,6 +28,7 @@
 		<EmbeddedResource Include="..\Assets\ParamDefs\EquipParamProtector.xml">
 			<LogicalName>ERModsMerger.Core.ERModsMergerParamDefOverrides.EquipParamProtector.xml</LogicalName>
 		</EmbeddedResource>
+		<EmbeddedResource Include="..\Assets\Regulations\**\regulation.bin" Link="ERModsMergerRegulations\%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
 
