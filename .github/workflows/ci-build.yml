@@ -33,7 +33,7 @@ jobs:
         run: dotnet build ERModsMerger.sln --configuration Release --no-restore
 
       - name: Test semantic regulation merging
-        run: dotnet test ERModsMerger.Core.Tests/ERModsMerger.Core.Tests.csproj --configuration Release
+        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
 
       - name: Upload compiled output
         if: success()
