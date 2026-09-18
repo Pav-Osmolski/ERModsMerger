@@ -1,15 +1,24 @@
-This is just a very simple fork of https://github.com/MadTekN1/ERModsMerger.
+This fork updates ERModsMerger for current Elden Ring versions and adds safer multi-version regulation merging.
 
-What changed?
+## Multi-version regulation support
 
-All I have done is updated the soulsformats framework and have included the vanilla 1.16 regulation.bin file. It's possible to do this and rebuild the project in VS in less than an hour.
+ERModsMerger can merge a mod built against an older Elden Ring regulation into the currently installed regulation without treating FromSoftware's intervening balance/schema changes as mod edits.
 
+For a mod whose regulation version differs from the installed game, ERModsMerger performs a three-way merge:
 
-* I am not making any functionality changes or improvements nor will I respond to any support issues outside of the program running.
-* This will work with the current ER version
-* EXE files in releases, otherwise just compile with visual studio ofc
+1. Compare the modded regulation against a vanilla regulation from the **same exact raw regulation version**.
+2. Extract only the mod's actual row/field changes.
+3. Apply those changes by row ID and ParamDef field name to the current installed vanilla regulation.
 
+Historical vanilla game files are **not redistributed**. Put your own exact-version vanilla `regulation.bin` files anywhere below:
 
+```text
+ERModsMergerConfig\VanillaRegulations\
+```
+
+Subfolder and file names do not matter. ERModsMerger reads the raw BND regulation version from each file and indexes it automatically. The installed game's `regulation.bin` is always used as the baseline for the current version.
+
+The current implementation targets the 2023+ regulation line, including 1.09 through 1.17.1. If an exact historical vanilla baseline is missing, that older mod is skipped rather than merged against the wrong vanilla data.
 
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
@@ -57,7 +66,7 @@ Launch ERModsMerger.exe and let it guide you through the process, it will self e
   * Respect the format presented above and dont forget to add double `\\` between each folders in paths.
   
 
-- Vanilla game/modded regulation.bin don't load: The app might be not compatible with this regulation.bin, make sure your game/mods are up to date (working regulation version is 1.16.0)
+- Vanilla game/modded regulation.bin doesn't load: Check the merge log for the raw regulation version and ParamDef compatibility. For an older mod, make sure an exact-version vanilla `regulation.bin` exists under `ERModsMergerConfig\\VanillaRegulations\\`.
 
 - Game don't launch, is buggy or mods are missing: Merges can cause some troubles depending of the overwrited files, also this tool only merge internal values of regulation.bin files (for now) and overwrite fields in benefits to the highest priority order. Any other individual conflicting files (eg: emevd.dcx anibnd.dcx msb.dcx etc..) will be overwrited using the same system of priority and potentially causing more troubles.
 
