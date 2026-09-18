@@ -1,5 +1,6 @@
 using ERModsMerger.Core.Formats;
 using SoulsFormats;
+using Xunit;
 
 namespace ERModsMerger.Core.Tests;
 
