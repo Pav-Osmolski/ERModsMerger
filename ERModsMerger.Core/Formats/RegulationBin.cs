@@ -367,7 +367,7 @@ namespace ERModsMerger.Core.Formats
             // Fallback for unusual ParamDefs with blank/duplicate names that kept their position.
             if (identity.SourceIndex >= 0 && identity.SourceIndex < row.Cells.Count)
             {
-                PARAM.Cell candidate = row.Cels[Identity.SourceIndex];
+                PARAM.Cell candidate = row.Cells[identity.SourceIndex];
 
                 if (string.Equals(candidate.Def.InternalName ?? string.Empty, identity.FieldName, StringComparison.Ordinal))
                 {
