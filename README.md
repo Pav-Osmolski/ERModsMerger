@@ -10,15 +10,27 @@ For a mod whose regulation version differs from the installed game, ERModsMerger
 2. Extract only the mod's actual row/field changes.
 3. Apply those changes by row ID and ParamDef field name to the current installed vanilla regulation.
 
-Historical vanilla game files are **not redistributed**. Put your own exact-version vanilla `regulation.bin` files anywhere below:
+Historical vanilla baselines are maintained in `Assets/Regulations`. On startup, the bundled baselines are extracted to:
 
 ```text
-ERModsMergerConfig\VanillaRegulations\
+ERModsMergerConfig\Regulations\
 ```
 
-Subfolder and file names do not matter. ERModsMerger reads the raw BND regulation version from each file and indexes it automatically. The installed game's `regulation.bin` is always used as the baseline for the current version.
+The installed game's `regulation.bin` always wins for the current version. Optional user-supplied baselines under `ERModsMergerConfig\VanillaRegulations\` can supplement or override historical bundled versions. Filenames do not determine compatibility: ERModsMerger reads the raw BND regulation version from each file.
 
-The current implementation targets the 2023+ regulation line, including 1.09 through 1.17.1. If an exact historical vanilla baseline is missing, that older mod is skipped rather than merged against the wrong vanilla data.
+Before merging, a preflight reports every historical version required by the selected mods and flags missing or unreadable baselines before any output is changed. If an exact baseline is unavailable, that mod is skipped rather than compared against the wrong vanilla version.
+
+### Maintaining the regulation archive
+
+`Assets/Regulations/manifest.json` records the complete 1.00 through 1.17.1 archive with the raw regulation version, expected file size and SHA-256 for every baseline. The source archive is TKGP's [ER Regulation Archive](https://www.nexusmods.com/eldenring/mods/4262).
+
+To refresh the bundled assets from a complete archive:
+
+```powershell
+.\tools\Import-RegulationArchive.ps1 -ArchivePath "C:\path\to\ER Regulation Archive.zip"
+```
+
+The importer normalises folder names, verifies all 34 files against the manifest, and refuses unexpected or corrupted inputs. Loose `Assets/Regulations/**/regulation.bin` files are embedded independently of the legacy `Assets.zip`, so updating the regulation archive no longer requires rebuilding that ZIP manually.
 
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
@@ -66,7 +78,7 @@ Launch ERModsMerger.exe and let it guide you through the process, it will self e
   * Respect the format presented above and dont forget to add double `\\` between each folders in paths.
   
 
-- Vanilla game/modded regulation.bin doesn't load: Check the merge log for the raw regulation version and ParamDef compatibility. For an older mod, make sure an exact-version vanilla `regulation.bin` exists under `ERModsMergerConfig\\VanillaRegulations\\`.
+- Vanilla game/modded regulation.bin doesn't load: Check the preflight/merge log for the raw regulation version and ParamDef compatibility. Bundled baselines are extracted under `ERModsMergerConfig\\Regulations\\`; optional historical overrides can be placed under `ERModsMergerConfig\\VanillaRegulations\\`.
 
 - Game don't launch, is buggy or mods are missing: Merges can cause some troubles depending of the overwrited files, also this tool only merge internal values of regulation.bin files (for now) and overwrite fields in benefits to the highest priority order. Any other individual conflicting files (eg: emevd.dcx anibnd.dcx msb.dcx etc..) will be overwrited using the same system of priority and potentially causing more troubles.
 
