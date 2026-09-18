@@ -128,153 +128,26 @@ namespace ERModsMerger.Core.Formats
         /// </summary>
         public List<ParamRowToMerge> FindRowsToMerge(Dictionary<string, PARAM> vanillaParams)
         {
-            var rowsToMerge = new List<ParamRowToMerge>();
-            LOG progressLog = RegLog.AddSubLog("Gathering rows to merge - Progress: 0%");
-            double counter = 0;
-            double max = Math.Max(Params.Count, 1);
+            LOG progressLog = RegLog.AddSubLog("Gathering semantic regulation changes");
+            List<ParamRowToMerge> changes = RegulationMergeEngine.FindRowsToMerge(
+                Params,
+                vanillaParams,
+                (message, type) => RegLog.AddSubLog(message, type));
 
-            foreach ((string paramKey, PARAM moddedParam) in Params)
-            {
-                double progress = counter / max * 100;
-                progressLog.Message = $"Gathering rows to merge - Progress: {Math.Round(progress, 0)}%";
-                progressLog.Progress = progress;
-                counter++;
-
-                if (!vanillaParams.TryGetValue(paramKey, out PARAM? vanillaParam))
-                {
-                    RegLog.AddSubLog($"Skipped {paramKey}: it is not present in the exact-version vanilla baseline", LOGTYPE.WARNING);
-                    continue;
-                }
-
-                Dictionary<int, List<PARAM.Row>> vanillaRows = vanillaParam.Rows
-                    .GroupBy(row => row.ID)
-                    .ToDictionary(group => group.Key, group => group.ToList());
-
-                Dictionary<int, List<PARAM.Row>> moddedRows = moddedParam.Rows
-                    .GroupBy(row => row.ID)
-                    .ToDictionary(group => group.Key, group => group.ToList());
-
-                foreach (PARAM.Row moddedRow in moddedParam.Rows)
-                {
-                    if (moddedRows[moddedRow.ID].Count != 1)
-                    {
-                        RegLog.AddSubLog($"Skipped duplicate row ID {moddedRow.ID} in {paramKey}", LOGTYPE.WARNING);
-                        continue;
-                    }
-
-                    if (!vanillaRows.TryGetValue(moddedRow.ID, out List<PARAM.Row>? baselineMatches))
-                    {
-                        ParamRowToMerge added = new ParamRowToMerge(paramKey, moddedRow.ID, moddedRow.Name ?? string.Empty, RowChangeType.Added);
-                        AddAllCells(added, moddedRow);
-                        rowsToMerge.Add(added);
-                        continue;
-                    }
-
-                    if (baselineMatches.Count != 1)
-                    {
-                        RegLog.AddSubLog($"Skipped ambiguous vanilla row ID {moddedRow.ID} in {paramKey}", LOGTYPE.WARNING);
-                        continue;
-                    }
-
-                    PARAM.Row vanillaRow = baselineMatches[0];
-                    ParamRowToMerge? modified = null;
-
-                    for (int cellIndex = 0; cellIndex < moddedRow.Cells.Count; cellIndex++)
-                    {
-                        PARAM.Cell moddedCell = moddedRow.Cells[cellIndex];
-                        CellIdentity identity = GetCellIdentity(moddedRow, cellIndex);
-
-                        if (!TryGetCell(vanillaRow, identity, out PARAM.Cell? vanillaCell) ||
-                            !Utils.AdvancedEquals(moddedCell.Value, vanillaCell.Value))
-                        {
-                            modified ??= new ParamRowToMerge(paramKey, moddedRow.ID, moddedRow.Name ?? string.Empty, RowChangeType.Modified);
-                            modified.Cells.Add(new ParamCellChange(identity, CloneCellValue(moddedCell.Value)));
-                        }
-                    }
-
-                    if (modified != null && modified.Cells.Count > 0)
-                        rowsToMerge.Add(modified);
-                }
-
-                // The original merger's index-based walk could turn every row after a deletion into
-                // a false "new row". Detect deletions explicitly by ID instead.
-                foreach (PARAM.Row vanillaRow in vanillaParam.Rows)
-                {
-                    if (vanillaRows[vanillaRow.ID].Count == 1 && !moddedRows.ContainsKey(vanillaRow.ID))
-                    {
-                        rowsToMerge.Add(new ParamRowToMerge(
-                            paramKey,
-                            vanillaRow.ID,
-                            vanillaRow.Name ?? string.Empty,
-                            RowChangeType.Deleted));
-                    }
-                }
-            }
-
-            progressLog.Message = "Gathering rows to merge - Progress: 100% ✓";
+            progressLog.Message = $"Gathered {changes.Count} semantic regulation change(s) ✓";
             progressLog.Type = LOGTYPE.SUCCESS;
             progressLog.Progress = 100;
-            return rowsToMerge;
+            return changes;
         }
 
         public void ApplyModifiedRows(List<ParamRowToMerge> rows)
         {
-            LOG progressLog = RegLog.AddSubLog("Merging modified rows - Progress: 0%");
-            double counter = 0;
-            double max = Math.Max(rows.Count, 1);
-            var modifiedParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            LOG progressLog = RegLog.AddSubLog("Applying semantic regulation changes");
 
-            foreach (ParamRowToMerge change in rows)
-            {
-                double progress = counter / max * 100;
-                progressLog.Message = $"Merging modified rows - Progress: {Math.Round(progress, 0)}%";
-                progressLog.Progress = progress;
-                counter++;
-
-                if (!Params.TryGetValue(change.ParamKey, out PARAM? targetParam))
-                {
-                    RegLog.AddSubLog(
-                        $"Skipped {change.ParamKey}:{change.RowID}: parameter no longer exists in the current regulation",
-                        LOGTYPE.WARNING);
-                    continue;
-                }
-
-                PARAM.Row? targetRow = targetParam.Rows.FirstOrDefault(row => row.ID == change.RowID);
-
-                if (change.ChangeType == RowChangeType.Deleted)
-                {
-                    int removed = targetParam.Rows.RemoveAll(row => row.ID == change.RowID);
-                    if (removed > 0)
-                        modifiedParams.Add(change.ParamKey);
-                    continue;
-                }
-
-                if (change.ChangeType == RowChangeType.Added)
-                {
-                    if (targetRow == null)
-                    {
-                        targetRow = new PARAM.Row(change.RowID, change.Name, targetParam.AppliedParamdef);
-                        InsertRowSorted(targetParam.Rows, targetRow);
-                    }
-
-                    // If a later official patch introduced the same ID, retain any fields introduced
-                    // by that later patch and overwrite only fields that existed in the old mod row.
-                    ApplyCells(change, targetRow);
-                    modifiedParams.Add(change.ParamKey);
-                    continue;
-                }
-
-                if (targetRow == null)
-                {
-                    RegLog.AddSubLog(
-                        $"Skipped modified row {change.ParamKey}:{change.RowID}: row no longer exists in the current regulation",
-                        LOGTYPE.WARNING);
-                    continue;
-                }
-
-                if (ApplyCells(change, targetRow) > 0)
-                    modifiedParams.Add(change.ParamKey);
-            }
+            HashSet<string> modifiedParams = RegulationMergeEngine.ApplyModifiedRows(
+                Params,
+                rows,
+                (message, type) => RegLog.AddSubLog(message, type));
 
             foreach (string paramKey in modifiedParams)
             {
@@ -290,108 +163,9 @@ namespace ERModsMerger.Core.Formats
                 bnd.Files[binderFileIndex].Bytes = Params[paramKey].Write();
             }
 
-            progressLog.Message = "Merging modified rows - Progress: 100% ✓";
+            progressLog.Message = $"Applied changes to {modifiedParams.Count} parameter file(s) ✓";
             progressLog.Type = LOGTYPE.SUCCESS;
             progressLog.Progress = 100;
-        }
-
-        private static int ApplyCells(ParamRowToMerge change, PARAM.Row targetRow)
-        {
-            int applied = 0;
-            foreach (ParamCellChange cellChange in change.Cells)
-            {
-                if (!TryGetCell(targetRow, cellChange.Identity, out PARAM.Cell? targetCell))
-                {
-                    RegLog.AddSubLog(
-                        $"Skipped removed field {change.ParamKey}:{change.RowID}:{cellChange.Identity.FieldName}",
-                        LOGTYPE.WARNING);
-                    continue;
-                }
-
-                try
-                {
-                    // PARAM.Cell.Value performs the appropriate primitive conversion for the target field.
-                    targetCell.Value = CloneCellValue(cellChange.Value);
-                    applied++;
-                }
-                catch (Exception ex)
-                {
-                    RegLog.AddSubLog(
-                        $"Could not apply {change.ParamKey}:{change.RowID}:{cellChange.Identity.FieldName} ({ex.Message})",
-                        LOGTYPE.WARNING);
-                }
-            }
-            return applied;
-        }
-
-        private static void AddAllCells(ParamRowToMerge change, PARAM.Row row)
-        {
-            for (int i = 0; i < row.Cells.Count; i++)
-            {
-                PARAM.Cell cell = row.Cells[i];
-                change.Cells.Add(new ParamCellChange(GetCellIdentity(row, i), CloneCellValue(cell.Value)));
-            }
-        }
-
-        private static CellIdentity GetCellIdentity(PARAM.Row row, int index)
-        {
-            string fieldName = row.Cells[index].Def.InternalName ?? string.Empty;
-            int occurrence = 0;
-
-            for (int i = 0; i < index; i++)
-            {
-                if (string.Equals(row.Cells[i].Def.InternalName, fieldName, StringComparison.Ordinal))
-                    occurrence++;
-            }
-
-            return new CellIdentity(fieldName, occurrence, index);
-        }
-
-        private static bool TryGetCell(PARAM.Row row, CellIdentity identity, out PARAM.Cell? cell)
-        {
-            int occurrence = 0;
-            for (int i = 0; i < row.Cells.Count; i++)
-            {
-                PARAM.Cell candidate = row.Cells[i];
-                if (!string.Equals(candidate.Def.InternalName ?? string.Empty, identity.FieldName, StringComparison.Ordinal))
-                    continue;
-
-                if (occurrence == identity.Occurrence)
-                {
-                    cell = candidate;
-                    return true;
-                }
-                occurrence++;
-            }
-
-            // Fallback for unusual ParamDefs with blank/duplicate names that kept their position.
-            if (identity.SourceIndex >= 0 && identity.SourceIndex < row.Cells.Count)
-            {
-                PARAM.Cell candidate = row.Cells[identity.SourceIndex];
-
-                if (string.Equals(candidate.Def.InternalName ?? string.Empty, identity.FieldName, StringComparison.Ordinal))
-                {
-                    cell = candidate;
-                    return true;
-                }
-            }
-
-            cell = null;
-            return false;
-        }
-
-        private static object CloneCellValue(object value)
-        {
-            return value is byte[] bytes ? bytes.ToArray() : value;
-        }
-
-        private static void InsertRowSorted(List<PARAM.Row> rows, PARAM.Row row)
-        {
-            int index = rows.FindIndex(existing => existing.ID > row.ID);
-            if (index >= 0)
-                rows.Insert(index, row);
-            else
-                rows.Add(row);
         }
 
         public static void MergeRegulationsV2(List<FileToMerge> regulationBinFiles, bool manualConflictResolving)
@@ -534,43 +308,5 @@ namespace ERModsMerger.Core.Formats
             GC.SuppressFinalize(this);
         }
 
-        internal enum RowChangeType
-        {
-            Modified,
-            Added,
-            Deleted
-        }
-
-        internal readonly record struct CellIdentity(string FieldName, int Occurrence, int SourceIndex);
-
-        internal sealed class ParamCellChange
-        {
-            public CellIdentity Identity { get; }
-            public object Value { get; }
-
-            public ParamCellChange(CellIdentity identity, object value)
-            {
-                Identity = identity;
-                Value = value;
-            }
-        }
-
-        internal sealed class ParamRowToMerge
-        {
-            public string ParamKey { get; }
-            public int RowID { get; }
-            public string Name { get; }
-            public RowChangeType ChangeType { get; }
-            public List<ParamCellChange> Cells { get; }
-
-            public ParamRowToMerge(string paramKey, int rowID, string name, RowChangeType changeType)
-            {
-                ParamKey = paramKey;
-                RowID = rowID;
-                Name = name;
-                ChangeType = changeType;
-                Cells = new List<ParamCellChange>();
-            }
-        }
     }
 }
