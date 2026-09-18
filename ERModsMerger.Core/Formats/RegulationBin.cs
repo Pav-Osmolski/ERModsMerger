@@ -426,6 +426,12 @@ namespace ERModsMerger.Core.Formats
                     currentVanilla.RegulationVersion,
                     mainLog);
 
+                RegulationMergePreflight.Result preflight = RegulationMergePreflight.Analyze(
+                    regulationBinFiles.Select(file => file.Path),
+                    currentVanilla.RegulationVersion,
+                    baselinePaths);
+                RegulationMergePreflight.Log(preflight, mainLog);
+
                 foreach (FileToMerge fileToMerge in regulationBinFiles)
                 {
                     if (!File.Exists(fileToMerge.Path))
@@ -449,8 +455,8 @@ namespace ERModsMerger.Core.Formats
                             {
                                 RegLog.AddSubLog(
                                     $"Cannot merge regulation {moddedRegulation.Version} ({moddedRegulation.RegulationVersion}): " +
-                                    $"its exact vanilla baseline is missing. Put a vanilla regulation.bin for this version anywhere under " +
-                                    $"{RegulationBaselineCatalog.BaselineFolderPath}",
+                                    $"its exact vanilla baseline is missing. Restore the bundled Assets/Regulations entry or put a vanilla regulation.bin " +
+                                    $"for this version anywhere under {RegulationBaselineCatalog.UserBaselineFolderPath}",
                                     LOGTYPE.ERROR);
                                 continue;
                             }
