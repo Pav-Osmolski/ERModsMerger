@@ -179,6 +179,47 @@ public class RegulationMergeEngineTests
         Assert.Equal(new[] { 10, 11 }, target.Rows.Select(row => (int)row["A"].Value));
     }
 
+
+    [Fact]
+    public void HigherPriorityEditRestoresRowDeletedByLowerPriorityMod()
+    {
+        PARAMDEF def = CreateDef("A");
+        PARAM currentVanilla = CreateParam(def, Row(def, 1, ("A", 10)));
+        PARAM target = CreateParam(def, Row(def, 1, ("A", 10)));
+
+        var deletion = new ParamRowToMerge(ParamKey, 1, "Row 1", RowChangeType.Deleted);
+        var edit = new ParamRowToMerge(ParamKey, 1, "Row 1", RowChangeType.Modified);
+        edit.Cells.Add(new ParamCellChange(new CellIdentity("A", 0, 0), 99));
+
+        RegulationMergeEngine.ApplyModifiedRows(Params(target), [deletion], Params(currentVanilla));
+        Assert.Empty(target.Rows);
+
+        RegulationMergeEngine.ApplyModifiedRows(Params(target), [edit], Params(currentVanilla));
+
+        Assert.Single(target.Rows);
+        Assert.Equal(99, target.Rows[0]["A"].Value);
+    }
+
+    [Fact]
+    public void ConflictTrackerReportsDifferentHigherPriorityValue()
+    {
+        var lower = new ParamRowToMerge(ParamKey, 1, "Row 1", RowChangeType.Modified);
+        lower.Cells.Add(new ParamCellChange(new CellIdentity("A", 0, 0), 10));
+
+        var higher = new ParamRowToMerge(ParamKey, 1, "Row 1", RowChangeType.Modified);
+        higher.Cells.Add(new ParamCellChange(new CellIdentity("A", 0, 0), 20));
+
+        var tracker = new RegulationConflictTracker();
+        Assert.Empty(tracker.Observe("Lower", [lower]));
+
+        RegulationConflict conflict = Assert.Single(tracker.Observe("Higher", [higher]));
+        Assert.Equal("A", conflict.FieldName);
+        Assert.Equal("Lower", conflict.PreviousSource);
+        Assert.Equal("Higher", conflict.WinningSource);
+        Assert.Equal("10", conflict.PreviousValue);
+        Assert.Equal("20", conflict.WinningValue);
+    }
+
     private static Dictionary<string, PARAM> Params(PARAM param)
         => new(StringComparer.OrdinalIgnoreCase) { [ParamKey] = param };
 
