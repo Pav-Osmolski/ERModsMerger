@@ -1925,6 +1925,7 @@
       <Maximum>999</Maximum>
       <SortID>9050</SortID>
     </Field>
+    <Field Def="dummy8 legacyPad_101[16]" FirstVersion="10100175" RemovedVersion="10210038" />
     <Field Def="f32 vsPlayerDmgCorrectRate_Disease = 1" FirstVersion="10210038">
       <DisplayName>対プレイヤー 疫病ダメージ補正倍率</DisplayName>
       <Description>プレイヤーに対する攻撃のみ、与えるダメージを補正する。</Description>
