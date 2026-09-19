@@ -97,6 +97,7 @@ namespace ERModsMerger.Core.Formats
         public static HashSet<string> ApplyModifiedRows(
             Dictionary<string, PARAM> targetParams,
             List<ParamRowToMerge> rows,
+            Dictionary<string, PARAM>? fallbackParams = null,
             Action<string, LOGTYPE>? log = null)
         {
             var modifiedParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -156,10 +157,31 @@ namespace ERModsMerger.Core.Formats
 
                 if (targetRow == null)
                 {
+                    PARAM.Row? fallbackRow = null;
+                    if (fallbackParams != null &&
+                        fallbackParams.TryGetValue(change.ParamKey, out PARAM? fallbackParam))
+                    {
+                        List<PARAM.Row> fallbackMatches = fallbackParam.Rows
+                            .Where(row => row.ID == change.RowID)
+                            .ToList();
+
+                        if (fallbackMatches.Count == 1)
+                            fallbackRow = fallbackMatches[0];
+                    }
+
+                    if (fallbackRow == null)
+                    {
+                        log?.Invoke(
+                            $"Skipped modified row {change.ParamKey}:{change.RowID}: row no longer exists in the current regulation",
+                            LOGTYPE.WARNING);
+                        continue;
+                    }
+
+                    targetRow = new PARAM.Row(fallbackRow);
+                    InsertRowSorted(targetParam.Rows, targetRow);
                     log?.Invoke(
-                        $"Skipped modified row {change.ParamKey}:{change.RowID}: row no longer exists in the current regulation",
+                        $"Restored {change.ParamKey}:{change.RowID} from current vanilla so a higher-priority edit can override an earlier deletion",
                         LOGTYPE.WARNING);
-                    continue;
                 }
 
                 if (ApplyCells(change, targetRow, log) > 0)
