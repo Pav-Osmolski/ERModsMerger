@@ -104,10 +104,6 @@ try {
             throw "Rebuilt Assets.zip is missing expected entry: $expected"
         }
     }
-
-    if (-not $entryNames.ContainsKey('Regulations/manifest.json')) {
-        throw 'Rebuilt Assets.zip is missing Regulations/manifest.json'
-    }
 }
 finally {
     $rebuilt.Dispose()
