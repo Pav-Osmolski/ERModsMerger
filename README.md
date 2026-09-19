@@ -17,6 +17,8 @@ v1.4.0 is a major reliability and compatibility update focused on regulation mer
 
 These multi-version regulation, validation, hardening and release improvements were developed by **DeViLhoOD**.
 
+[Full v1.4.0 release notes](Documentation/ReleaseNotes-v1.4.0.md)
+
 ## Multi-version regulation support
 
 ERModsMerger can merge a mod built against an older Elden Ring regulation into the currently installed regulation without treating FromSoftware's intervening balance/schema changes as mod edits.
@@ -119,7 +121,7 @@ Run the console app with /merge argument to automatically merge mods located ins
 
 ## Contributing
 
-If you wish to contribute to this project, you are very welcome. A simple [code documentation](https://github.com/MadTekN1/ERModsMerger/blob/main/Documentation/CodeDoc.md) is available to help you get started. Enjoy coding :)
+If you wish to contribute to this project, you are very welcome. The [code documentation](Documentation/CodeDoc.md) explains the current architecture, multi-version regulation pipeline, asset maintenance, testing and release workflow. Enjoy coding :)
 
 ## Credits & Thanks
 * **DeViLhoOD** - multi-version regulation support, historical compatibility work, merge hardening, validation, CI/release improvements and ongoing maintenance of this fork.
