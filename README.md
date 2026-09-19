@@ -30,7 +30,7 @@ To refresh the bundled assets from a complete archive:
 .\tools\Import-RegulationArchive.ps1 -ArchivePath "C:\path\to\ER Regulation Archive.zip"
 ```
 
-The importer normalises folder names, verifies all 34 files against the manifest, and refuses unexpected or corrupted inputs. Loose `Assets/Regulations/**/regulation.bin` files are embedded independently of the legacy `Assets.zip`, so updating the regulation archive no longer requires rebuilding that ZIP manually.
+The importer normalises folder names, verifies all 34 files against the manifest, rebuilds `Assets.zip`, and then verifies that the loose regulation files and the packaged copies are byte-identical. CI runs the same asset validation on every push and pull request, so `Assets/Regulations` and `Assets.zip` cannot silently drift apart.
 
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
