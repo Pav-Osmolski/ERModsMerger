@@ -2256,6 +2256,7 @@
     <Field Def="f32 matchTM1vs1_SecondHalfTime" FirstVersion="10701000" />
 
     <Field Def="dummy8 pad_0x348[40]" FirstVersion="10701000" RemovedVersion="11210015"/>
+    <Field Def="dummy8 legacyEndPad_111[144]" FirstVersion="11101000" RemovedVersion="11210015"/>
 
     <Field Def="s16 summonDataCoopMatchingSpiritAshLevelMul" FirstVersion="11210015"/>
 
