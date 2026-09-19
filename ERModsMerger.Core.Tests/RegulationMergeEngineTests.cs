@@ -201,6 +201,29 @@ public class RegulationMergeEngineTests
     }
 
     [Fact]
+    public void HigherPriorityAddedRowRestoresCurrentOnlyFieldsAfterDeletion()
+    {
+        PARAMDEF currentDef = CreateDef("A", "CurrentOnly");
+        PARAM currentVanilla = CreateParam(
+            currentDef,
+            Row(currentDef, 10, ("A", 1), ("CurrentOnly", 77)));
+        PARAM target = CreateParam(
+            currentDef,
+            Row(currentDef, 10, ("A", 1), ("CurrentOnly", 77)));
+
+        var deletion = new ParamRowToMerge(ParamKey, 10, "Row 10", RowChangeType.Deleted);
+        var added = new ParamRowToMerge(ParamKey, 10, "Row 10", RowChangeType.Added);
+        added.Cells.Add(new ParamCellChange(new CellIdentity("A", 0, 0), 5));
+
+        RegulationMergeEngine.ApplyModifiedRows(Params(target), [deletion], Params(currentVanilla));
+        RegulationMergeEngine.ApplyModifiedRows(Params(target), [added], Params(currentVanilla));
+
+        PARAM.Row row = Assert.Single(target.Rows);
+        Assert.Equal(5, row["A"].Value);
+        Assert.Equal(77, row["CurrentOnly"].Value);
+    }
+
+    [Fact]
     public void ConflictTrackerReportsDifferentHigherPriorityValue()
     {
         var lower = new ParamRowToMerge(ParamKey, 1, "Row 1", RowChangeType.Modified);
