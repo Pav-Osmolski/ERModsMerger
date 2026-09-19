@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 
@@ -40,7 +41,7 @@ namespace ERModsMerger.Core
                     CheckVersionAndEmbeddedExtraction();
                     return LoadedConfig;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     return null;
                 }
@@ -54,13 +55,26 @@ namespace ERModsMerger.Core
         /// </summary>
         private static void CheckVersionAndEmbeddedExtraction()
         {
-            string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-            if (LoadedConfig.ToolVersion != version)
+            string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+            string assetArchivePath = Path.Combine(AppContext.BaseDirectory, "Assets.zip");
+            string assetFingerprint = File.Exists(assetArchivePath)
+                ? ComputeFileSha256(assetArchivePath)
+                : "embedded:" + version;
+
+            if (LoadedConfig!.ToolVersion != version ||
+                !string.Equals(LoadedConfig.AssetsFingerprint, assetFingerprint, StringComparison.Ordinal))
             {
                 EmbeddedResourcesExtractor.ExtractAssets();
 
                 LoadedConfig.ToolVersion = version;
+                LoadedConfig.AssetsFingerprint = assetFingerprint;
             }
+        }
+
+        private static string ComputeFileSha256(string path)
+        {
+            using FileStream stream = File.OpenRead(path);
+            return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
         }
 
         /// <summary>
@@ -140,6 +154,8 @@ namespace ERModsMerger.Core
 
         string _toolVersion = "";
         public string ToolVersion { get { return _toolVersion; } set { _toolVersion = value; } }
+
+        public string AssetsFingerprint { get; set; } = "";
 
         public ProfileConfig? CurrentProfile { get; set; }
 

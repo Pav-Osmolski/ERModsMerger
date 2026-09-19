@@ -1,0 +1,68 @@
+name: CI Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build .NET 8 solution
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Generate Assets.zip
+        shell: pwsh
+        run: ./tools/Build-AssetsArchive.ps1
+
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Restore
+        run: dotnet restore ERModsMerger.sln
+
+      - name: Build
+        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+
+      - name: Test semantic regulation merging
+        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
+
+      - name: Build compact CI package
+        if: success()
+        shell: pwsh
+        run: ./tools/Build-ReleasePackage.ps1 -VersionLabel "ci-${{ github.sha }}"
+
+      - name: Upload compiled package
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ERModsMerger-build-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: artifacts/release/*.zip

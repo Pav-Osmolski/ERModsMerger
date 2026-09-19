@@ -1,451 +1,355 @@
-﻿using ERModsMerger.Core.Utility;
+using ERModsMerger.Core.Utility;
 using SoulsFormats;
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.IO;
-using static SoulsFormats.PARAM;
+using System.Linq;
 
 namespace ERModsMerger.Core.Formats
 {
+    /// <summary>
+    /// Reads, compares and writes Elden Ring regulation.bin files.
+    ///
+    /// Multi-version merging is deliberately implemented as a three-way merge:
+    ///   old/new mod -> vanilla from the mod's exact regulation version -> current vanilla.
+    /// This prevents official FromSoftware changes between regulation versions from being
+    /// mistaken for mod edits.
+    /// </summary>
     class RegulationBin : IDisposable
     {
-        BND4 bnd;
-        Dictionary<string, PARAMDEF> _paramdefs;
-        public Dictionary<string, PARAM> Params { get; set; }
+        private readonly BND4 bnd;
+        private readonly Dictionary<string, PARAMDEF> _paramdefs;
 
-        public string Version { get; set; }
+        public Dictionary<string, PARAM> Params { get; }
+        public ulong RegulationVersion { get; }
+        public string Version => Utils.ParseParamVersion(RegulationVersion);
 
-        public RegulationBin(string path)
+        private static LOG? RegLog;
+
+        public RegulationBin(string path, LOG? log = null)
         {
-            LoadParamDefs();
-            Params = new Dictionary<string, PARAM>();
+            if (log != null)
+                RegLog = log;
+            RegLog ??= LOG.Log("Regulation");
+
+            Params = new Dictionary<string, PARAM>(StringComparer.OrdinalIgnoreCase);
             bnd = SFUtil.DecryptERRegulation(path);
+            RegulationVersion = Convert.ToUInt64(bnd.Version);
+            _paramdefs = LoadParamDefs();
             Load();
+        }
+
+        /// <summary>
+        /// Reads only the raw regulation version from a regulation.bin without loading PARAM data.
+        /// Used while indexing historical vanilla baselines.
+        /// </summary>
+        public static bool TryReadVersion(string path, out ulong version)
+        {
+            try
+            {
+                using BND4 regulation = SFUtil.DecryptERRegulation(path);
+                version = Convert.ToUInt64(regulation.Version);
+                return true;
+            }
+            catch
+            {
+                version = 0;
+                return false;
+            }
+        }
+
+        private Dictionary<string, PARAMDEF> LoadParamDefs()
+        {
+            string paramDefsPath = Path.Combine(
+                ModsMergerConfig.LoadedConfig!.AppDataFolderPath,
+                "ParamDefs");
+
+            return RegulationParamDefCatalog.Load(paramDefsPath);
         }
 
         private void Load()
         {
-            Version = Utils.ParseParamVersion(Convert.ToUInt64(bnd.Version)); // should be 11220021
+            RegLog!.AddSubLog($"Regulation version: {Version} ({RegulationVersion})");
 
-            RegLog.AddSubLog("Regulation version: " + Version);
+            LOG progressLog = RegLog!.AddSubLog("Progress: 0%");
+            int loadedParams = 0;
+            int skippedParams = 0;
 
-            var log = RegLog.AddSubLog($"Progess: 0%");
             for (int i = 0; i < bnd.Files.Count; i++)
             {
                 double progress = i / (double)bnd.Files.Count * 100;
-                log.Message = $"Progess: {Math.Round(progress, 0)}%";
-                log.Progress = progress;
+                progressLog.Message = $"Progress: {Math.Round(progress, 0)}%";
+                progressLog.Progress = progress;
 
-                var paramName = Path.GetFileNameWithoutExtension(bnd.Files[i].Name);
+                var binderFile = bnd.Files[i];
+                if (!binderFile.Name.EndsWith(".param", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-                if (!bnd.Files[i].Name.ToUpper().EndsWith(".PARAM"))
+                PARAM param = PARAM.ReadIgnoreCompression(binderFile.Bytes);
+                if (param.ParamType == null || !_paramdefs.TryGetValue(param.ParamType, out PARAMDEF? versionAwareDef))
                 {
+                    skippedParams++;
                     continue;
                 }
 
-                PARAM p;
-
-                p = PARAM.ReadIgnoreCompression(bnd.Files[i].Bytes);
-
-
-
-                if (!_paramdefs.ContainsKey(p.ParamType ?? ""))
+                // Never force a mismatched layout. Historical PARAM data-version metadata may differ
+                // from the modern ParamDef when the physical row layout is still byte-for-byte compatible;
+                // that case is accepted only when ParamType and exact row size still match.
+                if (!RegulationParamDefCompatibility.TryApply(
+                        param,
+                        versionAwareDef,
+                        RegulationVersion,
+                        out bool toleratedDataVersionMismatch))
                 {
+                    string paramNameForLog = Path.GetFileNameWithoutExtension(binderFile.Name);
+                    RegLog!.AddSubLog(
+                        $"Skipped {paramNameForLog}: no compatible ParamDef for regulation {Version} ({RegulationVersion})",
+                        LOGTYPE.WARNING);
+                    skippedParams++;
                     continue;
                 }
 
-                if (p.ParamType == null)
+                string paramName = Path.GetFileNameWithoutExtension(binderFile.Name);
+                if (toleratedDataVersionMismatch)
                 {
-                    throw new Exception("Param type is unexpectedly null");
+                    RegLog!.AddSubLog(
+                        $"{paramName}: accepted historical ParamDef data version {param.ParamdefDataVersion} by exact row-size match",
+                        LOGTYPE.WARNING);
                 }
-
-                PARAMDEF def = _paramdefs[p.ParamType];
-                try
-                {
-                    p.ApplyParamdef(def);
-                }
-                catch (Exception e)
-                {
-                    var name = bnd.Files[i].Name.Split("\\").Last();
-                    var message = $"Could not apply ParamDef for {name}";
-                }
-
-                Params.Add(paramName, p);
+                Params[paramName] = param;
+                loadedParams++;
             }
 
-            log.Message = $"Progess: 100% - Loaded ✓";
-            log.Type = LOGTYPE.SUCCESS;
-            log.Progress = 100;
+            progressLog.Message = $"Progress: 100% - Loaded {loadedParams} params" +
+                                  (skippedParams > 0 ? $", skipped {skippedParams}" : string.Empty) + " ✓";
+            progressLog.Type = skippedParams == 0 ? LOGTYPE.SUCCESS : LOGTYPE.WARNING;
+            progressLog.Progress = 100;
         }
 
-
+        /// <summary>
+        /// Produces a semantic delta between this regulation and its exact-version vanilla baseline.
+        /// Rows are matched by ID and fields by internal name instead of array position.
+        /// </summary>
         public List<ParamRowToMerge> FindRowsToMerge(Dictionary<string, PARAM> vanillaParams)
         {
-            List<ParamRowToMerge> rowsToMerge = new List<ParamRowToMerge>();
+            LOG progressLog = RegLog!.AddSubLog("Gathering semantic regulation changes");
+            List<ParamRowToMerge> changes = RegulationMergeEngine.FindRowsToMerge(
+                Params,
+                vanillaParams,
+                (message, type) => RegLog!.AddSubLog(message, type));
 
-            var log = RegLog.AddSubLog("Gathering rows to merge - Progress: 0%");
-            double counter = 0;
-            double max = Params.Count;
-            foreach (var param in Params)
-            {
-                double progress = counter / max * 100;
-                log.Message = $"Gathering rows to merge - Progess: {Math.Round(progress, 0)}%";
-                log.Progress = progress;
-                counter++;
-
-                int moddedRowIndex = 0;
-                int vanillaRowIndex = 0;
-
-                var moddedRow = param.Value.Rows[moddedRowIndex];
-                var vanillaRow = vanillaParams[param.Key].Rows[vanillaRowIndex];
-
-                while ( moddedRowIndex < param.Value.Rows.Count )
-                {
-                    try
-                    {
-                        moddedRow = param.Value.Rows[moddedRowIndex];
-
-                        if(vanillaRowIndex < vanillaParams[param.Key].Rows.Count)
-                            vanillaRow = vanillaParams[param.Key].Rows[vanillaRowIndex];
-
-                        ParamRowToMerge? potentialToMergeRow = null;
-
-                        //new row
-                        if (moddedRow.ID != vanillaRow.ID)
-                        {
-                            potentialToMergeRow = new ParamRowToMerge(param.Key, moddedRow.ID, vanillaRowIndex, moddedRow.Name, true);
-                            potentialToMergeRow.Row = moddedRow;
-
-                            for (int i = 0; i < moddedRow.Cells.Count; i++)
-                                potentialToMergeRow.Cells.Add(i, moddedRow.Cells[i].Value);
-                        }
-                        //Same row id
-                        else
-                        {
-
-                            for (int i = 0; i < moddedRow.Cells.Count; i++)
-                            {
-                                //field modified
-                                if (!Utils.AdvancedEquals(moddedRow.Cells[i].Value, vanillaRow.Cells[i].Value))
-                                {
-                                    if (potentialToMergeRow == null)
-                                        potentialToMergeRow = new ParamRowToMerge(param.Key, moddedRow.ID, vanillaRowIndex, moddedRow.Name, false);
-
-                                    potentialToMergeRow.Cells.Add(i, moddedRow.Cells[i].Value);
-                                }
-                            }
-
-                            vanillaRowIndex++;
-                        }
-
-
-                        if (potentialToMergeRow != null)
-                            rowsToMerge.Add(potentialToMergeRow);
-
-                        moddedRowIndex++;
-                    }
-                    catch (Exception e)
-                    {
-
-                        throw;
-                    }
-                    
-                }
-            }
-
-            log.Message = $"Gathering rows to merge - Progess: 100% ✓";
-            log.Type = LOGTYPE.SUCCESS;
-            log.Progress = 100;
-
-            return rowsToMerge;
+            progressLog.Message = $"Gathered {changes.Count} semantic regulation change(s) ✓";
+            progressLog.Type = LOGTYPE.SUCCESS;
+            progressLog.Progress = 100;
+            return changes;
         }
 
-        public void ApplyModifiedRows(List<ParamRowToMerge> rows)
+        public void ApplyModifiedRows(
+            List<ParamRowToMerge> rows,
+            Dictionary<string, PARAM>? fallbackParams = null)
         {
-            var log = RegLog.AddSubLog("Merging modified rows - Progress: 0%");
-            double counter = 0;
-            double max = rows.Count;
+            LOG progressLog = RegLog!.AddSubLog("Applying semantic regulation changes");
 
-            List<string> modifiedParams = new List<string>();
-            foreach (ParamRowToMerge row in rows)
+            HashSet<string> modifiedParams = RegulationMergeEngine.ApplyModifiedRows(
+                Params,
+                rows,
+                fallbackParams,
+                (message, type) => RegLog!.AddSubLog(message, type));
+
+            foreach (string paramKey in modifiedParams)
             {
-                double progress = counter / max * 100;
-                log.Message = $"Merging modified rows - Progess: {Math.Round(progress, 0)}%";
-                log.Progress = progress;
-                counter++;
-                try
+                int binderFileIndex = bnd.Files.FindIndex(file =>
+                    string.Equals(Path.GetFileNameWithoutExtension(file.Name), paramKey, StringComparison.OrdinalIgnoreCase));
+
+                if (binderFileIndex == -1)
                 {
-                    if (row.NewRow) // add new row
-                    {
-                        var indexExist = Params[row.ParamKey].Rows.FindIndex(x=>x.ID == row.RowID);
-                        if (indexExist != -1) //another mod already use that ID
-                        {
-                            Params[row.ParamKey].Rows[indexExist] = row.Row; // for now we replace and overwrite existing new modded row
-                        }
-                        else // ID is available, row can be inserted
-                        {
-                            // find insertable row index
-                            int index = Params[row.ParamKey].Rows.FindIndex(x => x.ID > row.RowID);
-
-                            if (index != -1)
-                                Params[row.ParamKey].Rows.Insert(index, row.Row);
-                        }
-
-                    }
-                    else // modifying existing row
-                    {
-                        int rowIndex = 0;
-                        if (Params[row.ParamKey].Rows[row.RowIndex].ID == row.RowID)
-                            rowIndex = row.RowIndex;
-                        else
-                            rowIndex = Params[row.ParamKey].Rows.FindIndex(x=>x.ID == row.RowID); //find the row index based on ID in case of an other mod add new row(s)
-
-                        foreach (var cell in row.Cells)
-                            Params[row.ParamKey].Rows[rowIndex].Cells[cell.Key].Value = cell.Value;
-                    }
-
-                    if(!modifiedParams.Contains(row.ParamKey))
-                        modifiedParams.Add(row.ParamKey);
-
+                    RegLog!.AddSubLog($"Could not find {paramKey}.param in output regulation", LOGTYPE.ERROR);
+                    continue;
                 }
-                catch (Exception e)
-                {
 
-                    throw;
-                }
+                bnd.Files[binderFileIndex].Bytes = Params[paramKey].Write();
             }
 
-            //save in bnd
-            foreach (var key in modifiedParams)
-            {
-                int bndFileIndex = bnd.Files.FindIndex(x => x.Name.Contains(key + ".param"));
-                if (bndFileIndex != -1)
-                {
-                    bnd.Files[bndFileIndex].Bytes = Params[key].Write();
-                }
-                else
-                {
-                    LOG.Log("BND file not found", LOGTYPE.ERROR);
-                }
-            }
-
-            log.Message = $"Merging modified rows - Progess: 100% ✓";
-            log.Type = LOGTYPE.SUCCESS;
-            log.Progress = 100;
-
+            progressLog.Message = $"Applied changes to {modifiedParams.Count} parameter file(s) ✓";
+            progressLog.Type = LOGTYPE.SUCCESS;
+            progressLog.Progress = 100;
         }
 
-        internal class ParamRowToMerge
-        {
-            public string ParamKey { get; set; }
-            public int RowID { get; set; }
-            public int RowIndex { get; set; }
-            public string Name { get; set; }
-            public Dictionary<int, object> Cells { get; set; }
-
-            //for new rows
-            public bool NewRow { get; set; }
-            public PARAM.Row? Row { get; set; }
-
-            public ParamRowToMerge(string paramKey, int rowID, int rowIndex, string name, bool newRow, PARAM.Row? row = null)
-            {
-                ParamKey = paramKey;
-                RowID = rowID;
-                RowIndex = rowIndex;
-                Name = name;
-                NewRow = newRow;
-                Row = row;
-                Cells = new Dictionary<int, object>();
-            }
-        }
-
-        static LOG RegLog;
         public static void MergeRegulationsV2(List<FileToMerge> regulationBinFiles, bool manualConflictResolving)
         {
-            var mainLog = LOG.Log("Merging regulations");
+            LOG mainLog = LOG.Log("Merging regulations");
             Console.WriteLine();
-            RegLog = mainLog.AddSubLog("Loading vanilla regulation.bin");
 
-            if (!File.Exists(ModsMergerConfig.LoadedConfig.GamePath + "\\regulation.bin"))
+            string gameRegulationPath = Path.Combine(ModsMergerConfig.LoadedConfig!.GamePath, "regulation.bin");
+            RegLog = mainLog.AddSubLog("Loading current vanilla regulation.bin");
+
+            if (!File.Exists(gameRegulationPath))
             {
-                RegLog.AddSubLog($"Could not locate vanilla regulation bin at {ModsMergerConfig.LoadedConfig.GamePath}⚠  Please verify GamePath in ERModsMergerConfig\\config.json", LOGTYPE.ERROR);
+                RegLog!.AddSubLog(
+                    $"Could not locate vanilla regulation.bin at {ModsMergerConfig.LoadedConfig.GamePath}. Please verify GamePath in ERModsMergerConfig\\config.json",
+                    LOGTYPE.ERROR);
                 return;
             }
-            
-            //load vanilla regulation.bin
-            RegulationBin vanillaRegulationBin;
+
+            RegulationBin? currentVanilla = null;
+            RegulationBin? outputRegulation = null;
+            var historicalBaselines = new Dictionary<ulong, RegulationBin>();
+
             try
             {
-                vanillaRegulationBin = new RegulationBin(ModsMergerConfig.LoadedConfig.GamePath + "\\regulation.bin");
-            }
-            catch (Exception e)
-            {
-                RegLog.AddSubLog($"Could not load vanilla regulation.bin⚠  Your game regulation version might be incompatible", LOGTYPE.ERROR);
-                return;
-            }
-            Console.WriteLine();
-            //reload again vanilla as main modded regulation.bin (reload because can't find a way to clone bnd object)
-            RegLog = mainLog.AddSubLog($"Loading initial modded regulation");
-            RegulationBin mainRegulationBin;
-            mainRegulationBin = new RegulationBin(ModsMergerConfig.LoadedConfig.GamePath + "\\regulation.bin");
+                RegulationArchiveManifest manifest = RegulationArchiveManifest.Load();
 
-            Console.WriteLine();
-
-            for (int i = 0; i < regulationBinFiles.Count; i++)
-            {
-                if (File.Exists(regulationBinFiles[i].Path))
+                if (!TryReadVersion(gameRegulationPath, out ulong installedVersion))
                 {
-                    //load modded regulation.bin
-                    string relativePathLog = regulationBinFiles[i].Path.Replace("\\"+regulationBinFiles[i].ModRelativePath, "").Split("\\").Last() + " : " +  regulationBinFiles[i].ModRelativePath;
+                    RegLog!.AddSubLog("Could not read the installed game's regulation version.", LOGTYPE.ERROR);
+                    return;
+                }
+
+                if (!manifest.TryGet(installedVersion, out RegulationArchiveEntry? installedEntry))
+                {
+                    RegLog!.AddSubLog(
+                        $"Installed regulation {Utils.ParseParamVersion(installedVersion)} ({installedVersion}) is not supported by this build. " +
+                        $"Latest tested raw version: {manifest.MaxSupportedVersion}. Update ERModsMerger's regulation assets/ParamDefs before merging.",
+                        LOGTYPE.ERROR);
+                    return;
+                }
+
+                string installedHash = RegulationArchiveManifest.ComputeSha256(gameRegulationPath);
+                if (!string.Equals(installedHash, installedEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    RegLog!.AddSubLog(
+                        $"Installed regulation {Utils.ParseParamVersion(installedVersion)} ({installedVersion}) is not the known vanilla file. " +
+                        "Restore/verify the Elden Ring game files before merging so the current-game baseline is trustworthy.",
+                        LOGTYPE.ERROR);
+                    return;
+                }
+
+                currentVanilla = new RegulationBin(gameRegulationPath, RegLog);
+
+                RegLog = mainLog.AddSubLog("Loading initial output regulation from current vanilla");
+                outputRegulation = new RegulationBin(gameRegulationPath);
+
+                Dictionary<ulong, string> baselinePaths = RegulationBaselineCatalog.Build(
+                    gameRegulationPath,
+                    currentVanilla.RegulationVersion,
+                    manifest,
+                    mainLog);
+
+                RegulationMergePreflight.Result preflight = RegulationMergePreflight.Analyze(
+                    regulationBinFiles.Select(file => file.Path),
+                    currentVanilla.RegulationVersion,
+                    baselinePaths,
+                    manifest);
+                RegulationMergePreflight.Log(preflight, mainLog);
+
+                if (!preflight.CanMerge)
+                {
+                    RegLog = mainLog.AddSubLog(
+                        "Regulation merge aborted before output changes because preflight failed.",
+                        LOGTYPE.ERROR);
+                    return;
+                }
+
+                var conflictTracker = new RegulationConflictTracker();
+
+                foreach (FileToMerge fileToMerge in regulationBinFiles)
+                {
+                    if (!File.Exists(fileToMerge.Path))
+                        continue;
+
+                    string relativePathLog = GetRelativeModLogName(fileToMerge);
                     RegLog = mainLog.AddSubLog($"Loading {relativePathLog}");
 
                     try
                     {
-                        RegulationBin moddedRegulationBin = new RegulationBin(regulationBinFiles[i].Path);
+                        using var moddedRegulation = new RegulationBin(fileToMerge.Path);
 
-                        if (moddedRegulationBin.Version != vanillaRegulationBin.Version)
-                            RegLog.AddSubLog("Regulation version doesn't match - If you encounter any issue, please update this mod", LOGTYPE.WARNING);
-
-                        var rows = moddedRegulationBin.FindRowsToMerge(vanillaRegulationBin.Params);
-                        mainRegulationBin.ApplyModifiedRows(rows);
-                    }
-                    catch (Exception e)
-                    {
-                        RegLog.AddSubLog($"Could not merge {regulationBinFiles[i].Path} ⚠  Regulation version might be incompatible", LOGTYPE.ERROR);
-                    }
-                }
-                Console.WriteLine();
-            }
-
-            RegLog = mainLog.AddSubLog("Saving merged regulation.bin");
-            mainRegulationBin.Save(ModsMergerConfig.LoadedConfig.CurrentProfile.MergedModsFolderPath + "\\regulation.bin");
-            RegLog.AddSubLog("Saved in: " + ModsMergerConfig.LoadedConfig.CurrentProfile.MergedModsFolderPath + "\\regulation.bin", LOGTYPE.SUCCESS);
-        }
-
-        public void MergeFrom(Dictionary<string, PARAM> fromParams, Dictionary<string, PARAM> vanillaParams, bool manualConflictResolving = false)
-        {
-            int counter = 0;
-            int maxCounter = fromParams.Count;
-            foreach (var fromParam in fromParams)
-            {
-                string mergingProgressConsole = $"\r🛈  Merging regulation.bin - Progress {Math.Round(counter / (double)maxCounter * 100, 0)}%";
-
-                Console.Write(mergingProgressConsole);
-
-                bool modifiedParam = false;
-
-                for (int r = 0; r < fromParam.Value.Rows.Count; r++)
-                {
-                    int rowId = fromParam.Value.Rows[r].ID;
-                    int rowIndexFound = Params[fromParam.Key].Rows.FindIndex(x => x.ID == rowId);
-
-                    // if row to merge already exist AND have not ID duplicates
-                    if (rowIndexFound != -1 && Params[fromParam.Key].Rows.Count(x => x.ID == rowId) == 1)
-                    {
-                        try
+                        RegulationBin baseline;
+                        if (moddedRegulation.RegulationVersion == currentVanilla.RegulationVersion)
                         {
-                            for (int c = 0; c < fromParam.Value.Rows[r].Cells.Count; c++)
-                            {
-                                if (Params[fromParam.Key].Rows[rowIndexFound].Cells[c] != null && fromParam.Value.Rows[r].Cells[c] != null)
-                                {
-                                    var valCurrent = Params[fromParam.Key].Rows[rowIndexFound].Cells[c].Value;
-                                    var valFromParam = fromParam.Value.Rows[r].Cells[c].Value;
-
-
-                                    // verify if row exist in vanilla
-                                    if (vanillaParams[fromParam.Key].Rows.Count > rowIndexFound)
-                                    {
-                                        var valFromVanilla = vanillaParams[fromParam.Key].Rows[rowIndexFound].Cells[c].Value;
-
-
-                                        //modded param->row->field is different from vanilla
-                                        if (!Utils.AdvancedEquals(valFromVanilla, valFromParam))
-                                        {
-                                            //detect an attempt to re-edit a value already edited by another mod
-                                            //manual resolving
-                                            if (manualConflictResolving && !Utils.AdvancedEquals(valCurrent, valFromVanilla) && !Utils.AdvancedEquals(valCurrent, valFromParam))
-                                            {
-                                                Console.WriteLine();
-                                                LOG.Log($"- Detected conflict in {fromParam.Key}->[{rowIndexFound.ToString()}] {Params[fromParam.Key].Rows[rowIndexFound].Name}->{Params[fromParam.Key].Rows[rowIndexFound].Cells[c].Def.ToString()}\n" +
-                                                        $"   From value: {valCurrent.ToString()}\n" +
-                                                        $"   To value: {valFromParam.ToString()}\n\n",
-                                                        LOGTYPE.WARNING);
-
-
-                                                if (LOG.QueryUserYesNoQuestion("Apply new value?"))
-                                                {
-                                                    Params[fromParam.Key].Rows[rowIndexFound].Cells[c].Value = valFromParam;
-                                                    modifiedParam = true;
-                                                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                                                    Console.Write("\rNew value applied!                                                         \n\n");
-                                                    Console.ResetColor();
-                                                }
-                                                else
-                                                {
-                                                    Console.ForegroundColor = ConsoleColor.DarkRed;
-                                                    Console.Write("\rNew value ignored!                                                         \n\n");
-                                                    Console.ResetColor();
-                                                }
-
-                                            }
-                                            else
-                                            {
-                                                Params[fromParam.Key].Rows[rowIndexFound].Cells[c].Value = valFromParam;
-                                                modifiedParam = true;
-                                            }
-
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Params[fromParam.Key].Rows[rowIndexFound].Cells[c].Value = valFromParam;
-                                        modifiedParam = true;
-                                    }
-
-                                }
-
-                            }
-
-                        }
-                        catch (Exception e)
-                        {
-                            LOG.Log($"Error during merging Row {r.ToString()} in Param {fromParam.Key}\n", LOGTYPE.ERROR);
-                        }
-
-
-                    }
-                    else if (rowIndexFound == -1) // if the row to merge is a new one
-                    {
-                        Params[fromParam.Key].Rows.Add(new PARAM.Row(fromParam.Value.Rows[r]));
-                        modifiedParam = true;
-                    }
-
-                }
-
-
-                if (modifiedParam)
-                {
-                    int bndFileIndex = bnd.Files.FindIndex(x => x.Name.Contains(fromParam.Key + ".param"));
-                    try
-                    {
-                        if (bndFileIndex != -1)
-                        {
-                            bnd.Files[bndFileIndex].Bytes = Params[fromParam.Key].Write();
+                            baseline = currentVanilla;
                         }
                         else
                         {
-                            LOG.Log("BND file not found", LOGTYPE.ERROR);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        LOG.Log($"Unable to merge Param {fromParam.Key}\n", LOGTYPE.ERROR);
-                    }
-                }
-                counter++;
-            }
+                            if (!baselinePaths.TryGetValue(moddedRegulation.RegulationVersion, out string? baselinePath))
+                            {
+                                RegLog!.AddSubLog(
+                                    $"Cannot merge regulation {moddedRegulation.Version} ({moddedRegulation.RegulationVersion}): " +
+                                    $"its exact vanilla baseline is missing. Restore the bundled Assets/Regulations entry or put a vanilla regulation.bin " +
+                                    $"for this version anywhere under {RegulationBaselineCatalog.UserBaselineFolderPath}",
+                                    LOGTYPE.ERROR);
+                                continue;
+                            }
 
-            LOG.Log($"Merging regulation.bin - Progess: 100% - Done ✓\n\n");
+                            if (!historicalBaselines.TryGetValue(moddedRegulation.RegulationVersion, out RegulationBin? loadedBaseline))
+                            {
+                                RegLog = mainLog.AddSubLog(
+                                    $"Loading vanilla baseline {moddedRegulation.Version} ({moddedRegulation.RegulationVersion})");
+                                loadedBaseline = new RegulationBin(baselinePath);
+                                historicalBaselines.Add(moddedRegulation.RegulationVersion, loadedBaseline);
+                            }
+
+                            baseline = loadedBaseline;
+                            RegLog = mainLog.AddSubLog(
+                                $"Migrating {relativePathLog} from {moddedRegulation.Version} to {currentVanilla.Version}");
+                        }
+
+                        List<ParamRowToMerge> changes = moddedRegulation.FindRowsToMerge(baseline.Params);
+
+                        foreach (RegulationConflict conflict in conflictTracker.Observe(relativePathLog, changes))
+                        {
+                            RegLog!.AddSubLog(
+                                $"Priority conflict {conflict.ParamKey}/{conflict.RowId}/{conflict.FieldName}: " +
+                                $"{conflict.PreviousSource} [{conflict.PreviousValue}] -> " +
+                                $"{conflict.WinningSource} [{conflict.WinningValue}]. " +
+                                "Later processed (higher-priority) mod wins.",
+                                LOGTYPE.WARNING);
+                        }
+
+                        outputRegulation.ApplyModifiedRows(changes, currentVanilla.Params);
+                    }
+                    catch (Exception ex)
+                    {
+                        RegLog!.AddSubLog(
+                            $"Could not merge {fileToMerge.Path}. Regulation may be incompatible: {ex.Message}",
+                            LOGTYPE.ERROR);
+                    }
+
+                    Console.WriteLine();
+                }
+
+                RegLog = mainLog.AddSubLog("Saving merged regulation.bin");
+                string outputPath = Path.Combine(
+                    ModsMergerConfig.LoadedConfig.CurrentProfile!.MergedModsFolderPath,
+                    "regulation.bin");
+                outputRegulation.SaveTransactional(outputPath);
+                RegLog!.AddSubLog($"Saved and verified: {outputPath}", LOGTYPE.SUCCESS);
+            }
+            catch (Exception ex)
+            {
+                RegLog!.AddSubLog($"Could not load or merge regulation.bin: {ex.Message}", LOGTYPE.ERROR);
+            }
+            finally
+            {
+                foreach (RegulationBin baseline in historicalBaselines.Values)
+                    baseline.Dispose();
+                outputRegulation?.Dispose();
+                currentVanilla?.Dispose();
+            }
+        }
+
+        // Kept for callers that still reference the old entry point. V2 is now the canonical implementation.
+        public static void MergeRegulationsV1(List<FileToMerge> regulationBinFiles, bool manualConflictResolving)
+        {
+            MergeRegulationsV2(regulationBinFiles, manualConflictResolving);
+        }
+
+        private static string GetRelativeModLogName(FileToMerge file)
+        {
+            string directoryName = Path.GetFileName(Path.GetDirectoryName(file.Path) ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(directoryName))
+                directoryName = Path.GetFileName(file.Path);
+            return $"{directoryName} : {file.ModRelativePath}";
         }
 
         public void Save(string path)
@@ -453,103 +357,56 @@ namespace ERModsMerger.Core.Formats
             SFUtil.EncryptERRegulation(path, bnd);
         }
 
+        public void SaveTransactional(string path)
+        {
+            string? directory = Path.GetDirectoryName(path);
+            if (string.IsNullOrWhiteSpace(directory))
+                directory = Directory.GetCurrentDirectory();
+
+            Directory.CreateDirectory(directory);
+
+            string tempPath = Path.Combine(
+                directory,
+                $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+            string backupPath = path + ".bak";
+
+            try
+            {
+                Save(tempPath);
+
+                if (!TryReadVersion(tempPath, out ulong writtenVersion) ||
+                    writtenVersion != RegulationVersion)
+                {
+                    throw new InvalidDataException(
+                        $"Transactional regulation verification failed. Expected version {RegulationVersion}, found {writtenVersion}.");
+                }
+
+                if (File.Exists(path))
+                {
+                    if (File.Exists(backupPath))
+                        File.Delete(backupPath);
+
+                    File.Replace(tempPath, path, backupPath, true);
+                }
+                else
+                {
+                    File.Move(tempPath, path);
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
+        }
 
         public void Dispose()
         {
             bnd.Dispose();
             Params.Clear();
             _paramdefs.Clear();
-
-            // Notify the garbage collector 
-            // about the cleaning event 
             GC.SuppressFinalize(this);
         }
 
-        private void LoadParamDefs()
-        {
-            _paramdefs = new Dictionary<string, PARAMDEF>();
-            //Load paramdefs
-            var files = Directory.GetFiles(ModsMergerConfig.LoadedConfig.AppDataFolderPath +"\\ParamDefs", "*.xml");
-
-            foreach (var f in files)
-            {
-                var pdef = PARAMDEF.XmlDeserialize(f, false);
-
-                _paramdefs.Add(pdef.ParamType, pdef);
-            }
-
-        }
-
-        public static void MergeRegulationsV1(List<FileToMerge> regulationBinFiles, bool manualConflictResolving)
-        {
-            LOG.Log("Loading vanilla regulation.bin");
-
-            if (!File.Exists(ModsMergerConfig.LoadedConfig.GamePath + "\\regulation.bin"))
-            {
-                LOG.Log($"Could not locate vanilla regulation bin at {ModsMergerConfig.LoadedConfig.GamePath}\n⚠  Please verify GamePath in ERModsMergerConfig\\config.json", LOGTYPE.ERROR);
-                return;
-            }
-
-            //load vanilla regulation.bin
-            RegulationBin vanillaRegulationBin;
-            try
-            {
-                vanillaRegulationBin = new RegulationBin(ModsMergerConfig.LoadedConfig.GamePath + "\\regulation.bin");
-            }
-            catch (Exception e)
-            {
-                LOG.Log($"Could not load vanilla regulation.bin\n⚠  Your game regulation version might be incompatible", LOGTYPE.ERROR);
-                return;
-            }
-
-            //load modded regulation.bin
-            LOG.Log($"Loading initial modded regulation: {regulationBinFiles[0].Path}");
-
-            RegulationBin mainRegulationBin;
-            try
-            {
-                mainRegulationBin = new RegulationBin(regulationBinFiles[0].Path);
-
-                if (mainRegulationBin.Version != vanillaRegulationBin.Version)
-                    LOG.Log("Regulation version doesn't match - If you encounter any issue, please update this mod\n", LOGTYPE.WARNING);
-            }
-            catch (Exception e)
-            {
-                LOG.Log($"Could not load {regulationBinFiles[0].Path}\n⚠  Regulation version might be incompatible", LOGTYPE.ERROR);
-                return;
-            }
-
-            Console.WriteLine();
-
-            for (int i = 1; i < regulationBinFiles.Count; i++)
-            {
-                if (File.Exists(regulationBinFiles[i].Path))
-                {
-                    //load modded regulation.bin
-                    LOG.Log($"Loading {regulationBinFiles[i].Path}");
-
-                    try
-                    {
-                        RegulationBin moddedRegulationBin = new RegulationBin(regulationBinFiles[i].Path);
-
-                        if (moddedRegulationBin.Version != vanillaRegulationBin.Version)
-                            LOG.Log("Regulation version doesn't match - If you encounter any issue, please update this mod\n", LOGTYPE.WARNING);
-
-                        LOG.Log($"Merging ...");
-                        mainRegulationBin.MergeFrom(moddedRegulationBin.Params, vanillaRegulationBin.Params, manualConflictResolving);
-                    }
-                    catch (Exception e)
-                    {
-                        LOG.Log($"Could not load {regulationBinFiles[i].Path}\n⚠  Regulation version might be incompatible", LOGTYPE.ERROR);
-                    }
-                }
-            }
-
-            LOG.Log("Saving merged regulation.bin");
-            mainRegulationBin.Save(ModsMergerConfig.LoadedConfig.CurrentProfile.MergedModsFolderPath + "\\regulation.bin");
-            LOG.Log("Saved in: " + ModsMergerConfig.LoadedConfig.CurrentProfile.MergedModsFolderPath + "\\regulation.bin\n");
-        }
-
     }
-
 }

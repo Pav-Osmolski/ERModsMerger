@@ -1,0 +1,246 @@
+{
+  "source": "ER Regulation Archive",
+  "sourceUrl": "https://www.nexusmods.com/eldenring/mods/4262",
+  "archiveVersion": "1.17.1",
+  "generatedFrom": "ER Regulation Archive 1.17.1",
+  "regulations": [
+    {
+      "archiveLabel": "1.00",
+      "assetFolder": "1.00.0",
+      "rawVersion": 10000092,
+      "size": 1707376,
+      "sha256": "899b37635bb917983e40adcef9a56b53beef2d67a9839d40af6c5f91cb85a7dd"
+    },
+    {
+      "archiveLabel": "1.01",
+      "assetFolder": "1.01.0",
+      "rawVersion": 10100175,
+      "size": 1786240,
+      "sha256": "5161ef6ce7c5eb7152df9e2ebf911c46e4fea411ceb376da6e57bba5b7c6ce4c"
+    },
+    {
+      "archiveLabel": "1.01.1",
+      "assetFolder": "1.01.1",
+      "rawVersion": 10110023,
+      "size": 1808816,
+      "sha256": "97285f72a566273a1cf320e80913689e02afdfc00df642d3e71274e0328ee9f8"
+    },
+    {
+      "archiveLabel": "1.02",
+      "assetFolder": "1.02.0",
+      "rawVersion": 10200202,
+      "size": 1809488,
+      "sha256": "67b3ed8fcb7f06503d9c92ae5da98def227a8998e7225ccd8a142becfaa384c9"
+    },
+    {
+      "archiveLabel": "1.02.1",
+      "assetFolder": "1.02.1",
+      "rawVersion": 10210038,
+      "size": 1811088,
+      "sha256": "e1e68d560ccbfd10a7cc223203de9bf44c61a398e033b7d6b562a5a1c83d0ef2"
+    },
+    {
+      "archiveLabel": "1.03",
+      "assetFolder": "1.03.0",
+      "rawVersion": 10301000,
+      "size": 1823632,
+      "sha256": "1b695f8d577e85d11ad14d5025457593288518093ca602fb1e410fdb3f5a395b"
+    },
+    {
+      "archiveLabel": "1.03.1",
+      "assetFolder": "1.03.1",
+      "rawVersion": 10310059,
+      "size": 1829216,
+      "sha256": "29d575cdd7a527acf73743ce6bb08c166ab773a6b06dc5a6762cbda8a1f82200"
+    },
+    {
+      "archiveLabel": "1.03.2",
+      "assetFolder": "1.03.2",
+      "rawVersion": 10320064,
+      "size": 1829232,
+      "sha256": "4db5370078068df888224eba876c6ded3b0ced000915575f243752794dd310e6"
+    },
+    {
+      "archiveLabel": "1.03.3",
+      "assetFolder": "1.03.3",
+      "rawVersion": 10330078,
+      "size": 1829232,
+      "sha256": "3e453a68564b547581f12a806e760d9b2ffe9e78680f5ec3b1a90e05d0478c21"
+    },
+    {
+      "archiveLabel": "1.04",
+      "assetFolder": "1.04.0",
+      "rawVersion": 10401000,
+      "size": 1831040,
+      "sha256": "90b05c2a1d11923739884d1d0eb530a42fff672490f99bcbc6973dad2cadea37"
+    },
+    {
+      "archiveLabel": "1.04.1",
+      "assetFolder": "1.04.1",
+      "rawVersion": 10410090,
+      "size": 1831120,
+      "sha256": "d78c0c45ec0c6ee7855ea8c88ee53d68ea877b4717680244d497626e4503c6e6"
+    },
+    {
+      "archiveLabel": "1.04.2",
+      "assetFolder": "1.04.2",
+      "rawVersion": 10420097,
+      "size": 1831120,
+      "sha256": "8fa68e50bf4867a245ae2aca554aecee87fad954c3636e2e7636a64cf99d0758"
+    },
+    {
+      "archiveLabel": "1.05",
+      "assetFolder": "1.05.0",
+      "rawVersion": 10501000,
+      "size": 1831600,
+      "sha256": "195977f9903fe4f234cc44cce17748f61a35fd5eba4ce18a09b48c74712fe2f2"
+    },
+    {
+      "archiveLabel": "1.06",
+      "assetFolder": "1.06.0",
+      "rawVersion": 10601000,
+      "size": 1834080,
+      "sha256": "5f75731eb082d83b6b5399b89de467498436aa86da35838e75c205ed63421bd2"
+    },
+    {
+      "archiveLabel": "1.07",
+      "assetFolder": "1.07.0",
+      "rawVersion": 10701000,
+      "size": 1838496,
+      "sha256": "1cbda8f172b82a0de41dcf49cf3a759a146b782d79a96836d7d2bbf4727a8589"
+    },
+    {
+      "archiveLabel": "1.07.1",
+      "assetFolder": "1.07.1",
+      "rawVersion": 10710188,
+      "size": 1838496,
+      "sha256": "4637f99abf03bcd9951b155977dc1eeaa6032ebecb046f4c5d145514e83b129f"
+    },
+    {
+      "archiveLabel": "1.08",
+      "assetFolder": "1.08.0",
+      "rawVersion": 10801000,
+      "size": 1844112,
+      "sha256": "e0395ce60df8771157756cbb2ac4e162efcebf987e7c5dacc3311d769e564e08"
+    },
+    {
+      "archiveLabel": "1.08.1",
+      "assetFolder": "1.08.1",
+      "rawVersion": 10811000,
+      "size": 1844112,
+      "sha256": "27fb1c5664d180aecdf717500087c3d098e75ab5701260808477e4634b8f8b1c"
+    },
+    {
+      "archiveLabel": "1.09",
+      "assetFolder": "1.09.0",
+      "rawVersion": 10901000,
+      "size": 1852464,
+      "sha256": "d66fa7a7d46ffc0d930a144c97d8b96acd7116979e66a9b5c8e6fb872d803dce"
+    },
+    {
+      "archiveLabel": "1.09.1",
+      "assetFolder": "1.09.1",
+      "rawVersion": 10911000,
+      "size": 1852608,
+      "sha256": "84f09460173940a19f8ce32297e144324626098ed73d15103a8d2f05fc36de59"
+    },
+    {
+      "archiveLabel": "1.10",
+      "assetFolder": "1.10.0",
+      "rawVersion": 11001000,
+      "size": 1859440,
+      "sha256": "8dbae955c61260ba293d739153fef216415b47019db557bafa8682e1d8211233"
+    },
+    {
+      "archiveLabel": "1.11",
+      "assetFolder": "1.11.0",
+      "rawVersion": 11101000,
+      "size": 1991088,
+      "sha256": "cacd1df06817c7a9e7eceaf66d80c2500229672eac120c3f7cd374d8d4eec2ae"
+    },
+    {
+      "archiveLabel": "1.12",
+      "assetFolder": "1.12.0",
+      "rawVersion": 11201000,
+      "size": 1998528,
+      "sha256": "f855a30c2caa26c6f99dfb0365c7004754e1b1cf73c520c957f6c309092d405e"
+    },
+    {
+      "archiveLabel": "1.12.1",
+      "assetFolder": "1.12.1",
+      "rawVersion": 11210015,
+      "size": 2006960,
+      "sha256": "80192a8f90b5feb91761496517053a7a164c16a75e4ff44b5c4f3c84911b561a"
+    },
+    {
+      "archiveLabel": "1.12.2",
+      "assetFolder": "1.12.2",
+      "rawVersion": 11220021,
+      "size": 2006960,
+      "sha256": "53702b3dd1f90bc2f1b99445852f794463c01aaca8b9c39f5334bba52adeea29"
+    },
+    {
+      "archiveLabel": "1.12.4",
+      "assetFolder": "1.12.4",
+      "rawVersion": 11240023,
+      "size": 2001488,
+      "sha256": "c773c44563f8233fa54eb31fae131dc12014dc4f5b1837ac42ec22712289d697"
+    },
+    {
+      "archiveLabel": "1.13.1",
+      "assetFolder": "1.13.1",
+      "rawVersion": 11310027,
+      "size": 2025152,
+      "sha256": "b96554cb62776f995456bf9eb9dfc7ec58bcdf3ba256246c022fdf5857b0cf8a"
+    },
+    {
+      "archiveLabel": "1.13.2",
+      "assetFolder": "1.13.2",
+      "rawVersion": 11320031,
+      "size": 2019824,
+      "sha256": "f38d71f470bf5e7e5f4d75c6ae35fee83ced9a9555e33cdddfa644301fe7ac15"
+    },
+    {
+      "archiveLabel": "1.14.1",
+      "assetFolder": "1.14.1",
+      "rawVersion": 11410033,
+      "size": 2036288,
+      "sha256": "5a573651cf5e6995b0b662f5f30ed4a45eff902952269d020866162371773eba"
+    },
+    {
+      "archiveLabel": "1.15",
+      "assetFolder": "1.15.0",
+      "rawVersion": 11501000,
+      "size": 2036272,
+      "sha256": "226852f2e52bf9f2b8281259c9907d0359a46bce95d72177fd7f66b0820f9530"
+    },
+    {
+      "archiveLabel": "1.16",
+      "assetFolder": "1.16.0",
+      "rawVersion": 11601000,
+      "size": 2036272,
+      "sha256": "c2af61b9d1ad1c895eea762725ff455218f53c142bcadea69cf53c825221a976"
+    },
+    {
+      "archiveLabel": "1.16.1",
+      "assetFolder": "1.16.1",
+      "rawVersion": 11611000,
+      "size": 2036272,
+      "sha256": "7b6d07c357b639c902d48403ffe3612db35e0cf8d6fcc82d3fb24ea6eb6cf30a"
+    },
+    {
+      "archiveLabel": "1.17",
+      "assetFolder": "1.17.0",
+      "rawVersion": 11701000,
+      "size": 2045728,
+      "sha256": "fb4afd25e70effc9f9523d3aba89b1fb3e08b0800d8efb9a535cab038c5e8bbd"
+    },
+    {
+      "archiveLabel": "1.17.1",
+      "assetFolder": "1.17.1",
+      "rawVersion": 11711000,
+      "size": 2045728,
+      "sha256": "766521f9508de3a3532df61c45a1c2d93340f1ff7ed8306ab20df761712ca2ab"
+    }
+  ]
+}

@@ -11,7 +11,7 @@
 
 	  <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>annotations</Nullable>
 	<UseWPF>true</UseWPF>
   
 </PropertyGroup>
@@ -23,9 +23,6 @@
 	</PropertyGroup>
 
 
-	<ItemGroup>
-		<EmbeddedResource CopyToOutputDirectory="never" Include="..\Assets\Assets.zip" Link="ERModsMergerAssets\%(RecursiveDir)%(Filename)%(Extension)" />
-	</ItemGroup>
 
 
 	<ItemGroup>

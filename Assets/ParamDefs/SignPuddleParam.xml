@@ -34,6 +34,7 @@
     </Field>
     
     <Field Def="dummy8 pad1[24]" RemovedVersion="11210015" />
+    <Field Def="dummy8 legacyEndPad[16]" FirstVersion="11101000" RemovedVersion="11210015" />
     
     <Field Def="s32 unknown_0x20" FirstVersion="11210015"/>
     <Field Def="s32 unknown_0x24" FirstVersion="11210015"/>

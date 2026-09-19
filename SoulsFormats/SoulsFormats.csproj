@@ -8,7 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TargetFramework>net8.0-windows</TargetFramework>
     <LangVersion>12</LangVersion>
-  </PropertyGroup>
+    <NoWarn>$(NoWarn);CS0108;CS0162;CS0169</NoWarn>
+</PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugType>embedded</DebugType>
     <DocumentationFile />
