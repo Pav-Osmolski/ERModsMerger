@@ -95,13 +95,14 @@ namespace ERModsMerger.Core.Formats
                     continue;
                 }
 
-                PARAMDEF effectiveDef = versionAwareDef.VersionAware
-                    ? versionAwareDef.GetFilteredParamdefForRegulationVersion(RegulationVersion)
-                    : versionAwareDef;
-
-                // Never force a mismatched ParamDef. A forced definition can appear to work while
-                // silently shifting every later field, which is disastrous for cross-version merges.
-                if (!param.ApplyParamdefCarefully(effectiveDef))
+                // Never force a mismatched layout. Historical PARAM data-version metadata may differ
+                // from the modern ParamDef when the physical row layout is still byte-for-byte compatible;
+                // that case is accepted only when ParamType and exact row size still match.
+                if (!RegulationParamDefCompatibility.TryApply(
+                        param,
+                        versionAwareDef,
+                        RegulationVersion,
+                        out bool toleratedDataVersionMismatch))
                 {
                     string paramNameForLog = Path.GetFileNameWithoutExtension(binderFile.Name);
                     RegLog.AddSubLog(
@@ -112,6 +113,12 @@ namespace ERModsMerger.Core.Formats
                 }
 
                 string paramName = Path.GetFileNameWithoutExtension(binderFile.Name);
+                if (toleratedDataVersionMismatch)
+                {
+                    RegLog.AddSubLog(
+                        $"{paramName}: accepted historical ParamDef data version {param.ParamdefDataVersion} by exact row-size match",
+                        LOGTYPE.WARNING);
+                }
                 Params[paramName] = param;
                 loadedParams++;
             }
