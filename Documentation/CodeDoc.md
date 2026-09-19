@@ -172,7 +172,7 @@ CI generates `Assets.zip` first and then verifies the loose regulation files and
 - validation of all 34 bundled vanilla regulations;
 - real encrypted end-to-end migration tests.
 
-Routine CI and releases run three representative encrypted migrations (`1.00.0`, `1.12.1`, and `1.16.1`) while still validating all 34 bundled regulations structurally. The exhaustive 34-version encrypted migration sweep is available on demand through the **Deep Regulation Regression** workflow.
+Routine CI and releases hash/package-validate all 34 bundled regulation files, then fully decrypt/schema-test and migrate three representative versions (`1.00.0`, `1.12.1`, and `1.16.1`). The **Deep Regulation Regression** workflow is available on demand for exhaustive all-34 ParamDef compatibility and encrypted migration testing.
 
 ## Build and release
 
