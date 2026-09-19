@@ -1,5 +1,6 @@
 ﻿using DotNext.Collections.Generic;
 using ERModsMerger.Core;
+using ERModsMerger.Core.Formats;
 using ERModsMerger.Core.Utility;
 using System.IO;
 using System.Linq;
@@ -97,6 +98,34 @@ namespace ERModsManager.UCs
             foreach (var modItem in ModsList)
                 modItem.FileTree.FindConflictingFileTrees(dispatcher.Conflicts);
 
+            UpdateRegulationStatus(dispatcher);
+        }
+
+        private void UpdateRegulationStatus(MergeableFilesDispatcher dispatcher)
+        {
+            List<string> regulations = dispatcher.FilesToMerge
+                .Where(file =>
+                    !file.IsDirectory &&
+                    file.Enabled &&
+                    file.ModRelativePath.EndsWith("regulation.bin", StringComparison.OrdinalIgnoreCase))
+                .Select(file => file.Path)
+                .ToList();
+
+            if (regulations.Count == 0)
+            {
+                RegulationStatusBorder.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            RegulationStatusSummary summary = RegulationStatusService.Analyze(regulations);
+            RegulationStatusText.Text = summary.Message;
+            RegulationStatusText.ToolTip = summary.Details;
+            RegulationStatusText.Foreground = !summary.IsReady
+                ? Brushes.IndianRed
+                : summary.HasWarnings
+                    ? Brushes.Goldenrod
+                    : Brushes.LightGreen;
+            RegulationStatusBorder.Visibility = Visibility.Visible;
         }
 
         private ModItemUC AddModToList(ModConfig modConfig, bool isNew = false)
