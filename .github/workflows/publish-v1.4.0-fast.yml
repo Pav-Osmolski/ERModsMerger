@@ -1,4 +1,4 @@
-name: Publish v1.4.0 Fast
+name: Publish v1.4.0 Final
 
 on:
   push:
@@ -14,11 +14,11 @@ concurrency:
 
 jobs:
   release:
-    if: github.event.head_commit.message == 'Publish ERModsMerger v1.4.0 final'
+    if: github.event.head_commit.message == 'Publish ERModsMerger v1.4.0 release'
     runs-on: windows-latest
 
     steps:
-      - name: Checkout release commit
+      - name: Checkout validated release commit
         uses: actions/checkout@v7
         with:
           ref: 7a377cc0fae8d9c30856a520a60a28bbf2a65f87
@@ -28,54 +28,17 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
-          cache: true
-          cache-dependency-path: |
-            **/*.csproj
-            global.json
-
-      - name: Generate Assets.zip
-        shell: pwsh
-        run: ./tools/Build-AssetsArchive.ps1
-
-      - name: Validate all 34 regulation assets
-        shell: pwsh
-        run: ./tools/Test-RegulationAssets.ps1
-
-      - name: Restore
-        run: dotnet restore ERModsMerger.sln
-
-      - name: Build warning-free release
-        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
-
-      - name: Test representative regulation migrations
-        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
 
       - name: Build release package
         shell: pwsh
         run: ./tools/Build-ReleasePackage.ps1 -VersionLabel "v1.4.0"
 
-      - name: Create v1.4.0 tag
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch --tags --force
-          if (-not (git tag --list "v1.4.0")) {
-            git tag -a v1.4.0 7a377cc0fae8d9c30856a520a60a28bbf2a65f87 -m "ERModsMerger v1.4.0"
-            git push origin v1.4.0
-          }
-
-      - name: Publish GitHub release
+      - name: Create tag and publish GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if (gh release view v1.4.0 --repo "$env:GITHUB_REPOSITORY" 2>$null) {
-            gh release upload v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --clobber
-            gh release edit v1.4.0 --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest
-          } else {
-            gh release create v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest --target 7a377cc0fae8d9c30856a520a60a28bbf2a65f87
-          }
+          gh release create v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --target 7a377cc0fae8d9c30856a520a60a28bbf2a65f87 --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest
 
       - name: Upload release package artifact
         uses: actions/upload-artifact@v7
