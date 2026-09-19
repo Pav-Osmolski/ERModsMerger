@@ -44,7 +44,7 @@ jobs:
         run: dotnet restore ERModsMerger.sln
 
       - name: Build
-        run: dotnet build ERModsMerger.sln --configuration Release --no-restore
+        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
 
       - name: Test semantic regulation merging
         run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
