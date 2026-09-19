@@ -6,18 +6,16 @@ namespace ERModsMerger.Core.Tests;
 
 public class RegulationEndToEndTests
 {
+    // PR CI covers each materially different schema era; release validation
+    // expands this to all 34 manifest versions via ERMM_FULL_REGULATION_MATRIX.
     private static readonly string[] RepresentativeVersions =
     [
         "1.00.0",
-        "1.01.0",
-        "1.02.0",
+        "1.02.1",
         "1.03.0",
-        "1.07.0",
         "1.11.0",
-        "1.12.0",
         "1.12.1",
         "1.16.1",
-        "1.17.0",
         "1.17.1"
     ];
 
