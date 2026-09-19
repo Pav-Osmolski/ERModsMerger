@@ -8,52 +8,41 @@ namespace ERModsMerger.Core
     public static class EmbeddedResourcesExtractor
     {
         /// <summary>
-        /// Extracts the embedded Assets archive to the app-data folder, then overlays
-        /// any ParamDefs that must supersede the archive contents.
+        /// Extracts the generated Assets.zip shipped beside the application.
+        /// Older embedded-resource packages remain supported as a fallback.
         /// </summary>
         public static void ExtractAssets()
         {
-            string folderPath = ModsMergerConfig.LoadedConfig.AppDataFolderPath;
+            string folderPath = ModsMergerConfig.LoadedConfig!.AppDataFolderPath;
             Directory.CreateDirectory(folderPath);
 
-            Assembly assembly = Assembly.GetAssembly(typeof(ERModsMerger.Core.ModsMerger))!;
-            string[] resourceNames = assembly.GetManifestResourceNames();
-
-            foreach (string resourceName in resourceNames)
+            string externalArchive = Path.Combine(AppContext.BaseDirectory, "Assets.zip");
+            if (File.Exists(externalArchive))
             {
-                if (!resourceName.Contains("ERModsMerger.Core.ERModsMergerAssets.Assets.zip", StringComparison.Ordinal))
-                    continue;
-
-                using Stream stream = assembly.GetManifestResourceStream(resourceName)!;
-                ZipFile.ExtractToDirectory(stream, folderPath, true);
-                break;
+                ZipFile.ExtractToDirectory(externalArchive, folderPath, true);
+                return;
             }
 
-            ExtractParamDefOverrides(assembly, resourceNames, folderPath);
-        }
+            Assembly assembly = Assembly.GetAssembly(typeof(ModsMerger))
+                ?? throw new InvalidOperationException("Could not resolve ERModsMerger.Core assembly.");
 
-        private static void ExtractParamDefOverrides(Assembly assembly, string[] resourceNames, string folderPath)
-        {
-            const string marker = ".ERModsMergerParamDefOverrides.";
-            string paramDefsPath = Path.Combine(folderPath, "ParamDefs");
-            Directory.CreateDirectory(paramDefsPath);
+            string? resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(name =>
+                    name.Contains(
+                        "ERModsMerger.Core.ERModsMergerAssets.Assets.zip",
+                        StringComparison.Ordinal));
 
-            foreach (string resourceName in resourceNames)
+            if (resourceName == null)
             {
-                int markerIndex = resourceName.IndexOf(marker, StringComparison.Ordinal);
-                if (markerIndex < 0 || !resourceName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                string fileName = resourceName[(markerIndex + marker.Length)..];
-                CopyResource(assembly, resourceName, Path.Combine(paramDefsPath, fileName));
+                throw new FileNotFoundException(
+                    "Assets.zip was not found beside the application and no embedded fallback exists.",
+                    externalArchive);
             }
-        }
 
-        private static void CopyResource(Assembly assembly, string resourceName, string destinationPath)
-        {
-            using Stream source = assembly.GetManifestResourceStream(resourceName)!;
-            using FileStream destination = File.Create(destinationPath);
-            source.CopyTo(destination);
+            using Stream stream = assembly.GetManifestResourceStream(resourceName)
+                ?? throw new InvalidDataException($"Embedded asset resource could not be opened: {resourceName}");
+
+            ZipFile.ExtractToDirectory(stream, folderPath, true);
         }
     }
 }
