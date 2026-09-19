@@ -1,0 +1,50 @@
+name: Deep Regulation Regression
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deep-regulation-regression
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Full 34-version regulation matrix
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Generate Assets.zip
+        shell: pwsh
+        run: ./tools/Build-AssetsArchive.ps1
+
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
+
+      - name: Restore
+        run: dotnet restore ERModsMerger.sln
+
+      - name: Build
+        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+
+      - name: Run full 34-version migration matrix
+        env:
+          ERMM_FULL_REGULATION_MATRIX: '1'
+        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
