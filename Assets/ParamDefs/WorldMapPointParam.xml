@@ -548,6 +548,7 @@
       <SortID>2907</SortID>
     </Field>
     
+    <Field Def="dummy8 legacyPad_1030[64]" FirstVersion="10301000" RemovedVersion="10310059" />
     <Field Def="s32 textEnableFlag2Id1" FirstVersion="10310059" />
     <Field Def="s32 textEnableFlag2Id2" FirstVersion="10310059" />
     <Field Def="s32 textEnableFlag2Id3" FirstVersion="10310059" />
