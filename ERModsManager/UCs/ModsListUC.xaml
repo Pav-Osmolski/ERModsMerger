@@ -37,8 +37,23 @@
                 <Image Source="{StaticResource close_squareDrawingImage}"/>
             </Button>
         </Grid>
+
+        <Border x:Name="RegulationStatusBorder"
+                Visibility="Collapsed"
+                Margin="8,42,8,0"
+                Padding="8,4"
+                VerticalAlignment="Top"
+                BorderBrush="#33FFFFFF"
+                BorderThickness="1"
+                CornerRadius="4"
+                Background="#22000000">
+            <TextBlock x:Name="RegulationStatusText"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       TextTrimming="CharacterEllipsis" />
+        </Border>
         
-        <Border Margin="0,40,0,0" BorderBrush="#33FFFFFF" BorderThickness="0,1,0,0">
+        <Border Margin="0,76,0,0" BorderBrush="#33FFFFFF" BorderThickness="0,1,0,0">
             <ScrollViewer VerticalScrollBarVisibility="Hidden" VerticalAlignment="Top">
                 <Grid>
                     <Border x:Name="MergedIndicatorBorder" Visibility="Hidden" Margin="4" BorderBrush="#9FD69D" BorderThickness="1" CornerRadius="5"/>
