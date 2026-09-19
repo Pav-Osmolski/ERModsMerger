@@ -27,7 +27,26 @@ public class RegulationArchiveCompatibilityTests
 
         var compatibilityFailures = new List<string>();
 
-        foreach (ManifestRegulation regulation in manifest.Regulations)
+        IReadOnlyList<ManifestRegulation> regulations = string.Equals(
+                Environment.GetEnvironmentVariable("ERMM_FULL_REGULATION_MATRIX"),
+                "1",
+                StringComparison.Ordinal)
+            ? manifest.Regulations
+            : manifest.Regulations
+                .Where(regulation =>
+                    regulation.AssetFolder is "1.00.0" or "1.12.1" or "1.16.1")
+                .ToList();
+
+        Assert.Equal(
+            string.Equals(
+                Environment.GetEnvironmentVariable("ERMM_FULL_REGULATION_MATRIX"),
+                "1",
+                StringComparison.Ordinal)
+                ? 34
+                : 3,
+            regulations.Count);
+
+        foreach (ManifestRegulation regulation in regulations)
         {
             string path = Path.Combine(
                 repoRoot,
@@ -88,7 +107,7 @@ public class RegulationArchiveCompatibilityTests
 
         Assert.True(
             compatibilityFailures.Count == 0,
-            "Bundled regulation compatibility failures:" + Environment.NewLine +
+            "Regulation compatibility failures:" + Environment.NewLine +
             string.Join(Environment.NewLine, compatibilityFailures));
     }
 
