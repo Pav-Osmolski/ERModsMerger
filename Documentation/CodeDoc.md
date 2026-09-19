@@ -1,67 +1,207 @@
 # Code Documentation
 
-If you are here, you may be a developer and want to have a better understanding of the underlying structure or even wish to contribute to this awesome project.
-
-This documentation is here to broadly define how this tool works to help you get started.
+This document gives contributors a high-level map of ERModsMerger and the regulation merge pipeline.
 
 ## Structure
 
-This project is divided into 3 essential parts:
+The solution is divided into four main projects:
 
-- `ERModsMerger.Core` is the "core" of this project, contains all the main classes and functions needed for merge.
-- `ERModsManager` is the WPF UI App
-- `ERModsMerger` is the Console App
+- `ERModsMerger.Core` contains merge orchestration, format handling, configuration and validation.
+- `ERModsManager` is the WPF manager application.
+- `ERModsMerger` is the console application.
+- `ERModsMerger.Core.Tests` contains semantic, archive-compatibility and end-to-end regulation tests.
 
+`SoulsFormats` is vendored and used for Elden Ring binary formats.
 
-## ERModsMerger.Core
+## Merge flow
 
-How does the merge take place in the algo:
-  
-### `ModsMerger` class
+### `ModsMerger`
 
-Main entry point of the merger Core and used with a simple call of `StartMerge()` function:
-  - Retrieve the `ModsMergerConfig` (merge config class) precedently loaded in Console / UI App.
-  - Foreach mod directories => Find all files.
-  - Add all files in `MergeableFilesDispatcher` class, used to search for conflicts and merge all.
-  
-<br>
+`ModsMerger.StartMerge()` is the main Core entry point.
 
-### `MergeableFilesDispatcher` class
+It loads the active configuration/profile, discovers enabled mod files, passes them to `MergeableFilesDispatcher`, resolves conflicts according to configured priority and writes the merged output.
 
-As its name suggests, this class determines what type the files are and where to send them for merge.
-Also include functions to group files to merge by their name and types respecting the configured priority order set in config.
+### `MergeableFilesDispatcher`
 
-Methods:
+The dispatcher groups files by relative path and selects the appropriate merge strategy.
 
-- `AddFile(string path)` Add a file to the dispatcher by storing them in a list of `FileToMerge` object.
-- `SearchForConflicts()` Search and group all individual mod file conflicts and store them in a list of `FileConflict` object.
-- `MergeAllConflicts()` Depending of their format, send all `FileConflict` to its respective `Formats.*` merger class by calling `Formats.*.MergeFiles(List<FileToMerge> files)` static method.
+Important responsibilities include:
 
-<br>
+- collecting `FileToMerge` entries;
+- detecting file conflicts;
+- preserving configured mod priority;
+- dispatching `regulation.bin` conflicts to the regulation merger;
+- copying/overwriting unsupported file formats according to priority.
 
-### `Formats.*` classes
+## Regulation merging
 
-We can find in this folder / namespace all the merger classes for each file format (eg: regulation.bin or dcx files) and called by the `MergeableFilesDispatcher`
+The regulation implementation lives under `ERModsMerger.Core/Formats`.
 
-Methods:
+### Three-way migration
 
-- `contructor(string path)` Initialize and load file using `SoulsFormats` lib.
-- `Save(string path)` Save the modified file to specified location.
-- `static MergeFiles(List<FileToMerge> files)` Load all files and apply merge logic then save the modified file to configured directory.
+Cross-version regulation merging is deliberately performed as a three-way merge:
 
-<br>
+1. Load the modded regulation.
+2. Load the **exact vanilla regulation version** that the mod was built against.
+3. Calculate the semantic delta between the mod and that exact vanilla baseline.
+4. Start from the installed game's verified current vanilla regulation.
+5. Apply only the semantic mod delta to the current regulation.
 
-## ERModsMerger (Console App)
+This prevents official FromSoftware changes between versions from being misidentified as mod changes.
 
-The console app is pretty straightforward when it comes to merging, everything is in `program.cs` as almost everything is called from the core lib.
+### `RegulationBin`
 
-## ERModsManager (WPF UI App)
+`RegulationBin` owns encrypted regulation I/O and PARAM loading.
 
-WPF is a little more complex as it implement much more possibilities and user friendly behaviors. But things are splitted using various UsersControls.
+It:
 
-Main views / tab are:
+- decrypts/encrypts Elden Ring `regulation.bin`;
+- records the raw BND regulation version;
+- applies the correct version-filtered ParamDef for that raw version;
+- delegates semantic comparison/application to `RegulationMergeEngine`;
+- saves merged output transactionally;
+- verifies the temporary encrypted output before replacing the previous result.
 
-- `CustomWindow` Main window used to initialize differents tabs / user controls, also contain first launch scenario and config loading behaviors.
-- `ModsListUC` UserControl listing mods, include drag & drop mechanics loading / creating `ModsItemUC` mods into a StackPanel
-- `LogsUC` UserControl displaying logs from the Core.
-- `ConfigUC` UserControl to modify loaded config.
+An existing merged output is preserved as `regulation.bin.bak`.
+
+### `RegulationParamDefCatalog`
+
+Version-aware ParamDef XML files are parsed once per asset set and cached for the lifetime of the process. Each regulation receives its own dictionary view of the cached definitions.
+
+Historical `FirstVersion` and `RemovedVersion` metadata is retained and filtered for the exact raw regulation version before applying a ParamDef.
+
+### `RegulationParamDefCompatibility`
+
+Some historical PARAMs use older data-version metadata even when their physical row layout is compatible. This helper permits that mismatch only when the PARAM type and row size still match exactly.
+
+It must not be loosened to force incompatible schemas.
+
+### `RegulationMergeEngine`
+
+This class contains the testable semantic delta/apply algorithm.
+
+Rows are identified by row ID. Cells are identified by ParamDef internal field name plus duplicate-name occurrence, with a conservative positional fallback.
+
+The engine supports:
+
+- modified rows;
+- added rows;
+- deleted rows;
+- fields introduced or removed by newer regulations;
+- row-order changes;
+- high-ID row insertion;
+- duplicate-row safeguards;
+- priority restoration when a higher-priority edit/add follows a lower-priority deletion.
+
+### `RegulationConflictTracker`
+
+The tracker records changes already applied by lower-priority mods.
+
+If a later/higher-priority mod changes the same PARAM / row ID / field to a different value, the conflict is logged with both sources and both values. The later processed mod wins, matching the manager's priority model.
+
+Deletion/edit and deletion/add conflicts are reported at row level.
+
+### Baseline trust and future-version guard
+
+`Assets/Regulations/manifest.json` is the compatibility authority.
+
+For every supported version it records:
+
+- normalised asset folder;
+- raw BND regulation version;
+- expected file size;
+- SHA-256.
+
+The current installed regulation, bundled historical regulations and optional user overrides must match the known vanilla hash for their raw version.
+
+A regulation version absent from the manifest is unsupported and regulation merging fails closed until its vanilla baseline and compatible ParamDefs have been added and validated.
+
+### Preflight and manager status
+
+`RegulationMergePreflight` scans all selected mod regulations before merge output is changed.
+
+It reports unreadable regulations, unsupported versions and missing exact-version baselines. A failed preflight aborts regulation merging.
+
+`RegulationStatusService` exposes a lightweight version/baseline summary to the WPF manager so users can see the installed regulation, selected mod versions and migration readiness before starting a merge.
+
+## Regulation assets
+
+The maintained source of truth is:
+
+```text
+Assets/
+  ParamDefs/
+  Regulations/
+    manifest.json
+    1.00.0/regulation.bin
+    ...
+    1.17.1/regulation.bin
+```
+
+`Assets.zip` is generated and is intentionally not tracked in Git.
+
+### Build the archive
+
+```powershell
+.\tools\Build-AssetsArchive.ps1
+```
+
+### Import/update the regulation archive
+
+```powershell
+.\tools\Import-RegulationArchive.ps1 -ArchivePath "C:\path\to\ER Regulation Archive.zip"
+```
+
+The importer validates every source file against the manifest before accepting it.
+
+### Validate assets
+
+```powershell
+.\tools\Test-RegulationAssets.ps1
+```
+
+CI generates `Assets.zip` first and then verifies the loose regulation files and packaged copies.
+
+## Tests
+
+`ERModsMerger.Core.Tests` includes:
+
+- semantic merge unit tests;
+- priority/conflict tests;
+- historical ParamDef compatibility tests;
+- validation of all 34 bundled vanilla regulations;
+- real encrypted end-to-end migration tests.
+
+Pull-request CI exercises representative schema eras. Release validation sets `ERMM_FULL_REGULATION_MATRIX=1` and runs the end-to-end migration path across all 34 manifest versions before packaging.
+
+## Build and release
+
+The repository targets .NET 8 and is pinned by `global.json`.
+
+CI:
+
+1. generates `Assets.zip`;
+2. validates the regulation archive;
+3. restores/builds the solution;
+4. treats maintained-project warnings as errors;
+5. runs tests;
+6. builds a compact release package;
+7. uploads the package as a workflow artifact.
+
+`tools/Build-ReleasePackage.ps1` publishes the console and manager as framework-dependent Windows x64 single-file executables and packages them with one shared `Assets.zip`, README and licence.
+
+Tags matching `v*` invoke `.github/workflows/release.yml`, which repeats the full validation pipeline and publishes the resulting ZIP as a GitHub release.
+
+## Applications
+
+### ERModsMerger
+
+The console application delegates merge work to Core. It also supports the `/merge` automation argument.
+
+### ERModsManager
+
+The WPF application provides profiles, drag-and-drop mod management, priority ordering, logs, configuration and regulation readiness information.
+
+## Credits
+
+The multi-version regulation support, historical compatibility work, validation/hardening and modern release pipeline in this fork were developed by **DeViLhoOD**.
