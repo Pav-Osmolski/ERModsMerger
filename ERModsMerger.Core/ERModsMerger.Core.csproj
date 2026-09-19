@@ -11,7 +11,7 @@
 
 	  <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <Nullable>annotations</Nullable>
 	<UseWPF>true</UseWPF>
   
 </PropertyGroup>
