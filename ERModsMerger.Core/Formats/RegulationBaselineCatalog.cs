@@ -88,18 +88,18 @@ namespace ERModsMerger.Core.Formats
                         continue;
                     }
 
+                    string hash = RegulationArchiveManifest.ComputeSha256(candidate);
+                    if (!string.Equals(hash, manifestEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                    {
+                        mainLog.AddSubLog(
+                            $"Rejected {(isUserOverrideFolder ? "user" : "bundled")} baseline {candidate}: SHA-256 does not match " +
+                            $"the known vanilla {Utils.ParseParamVersion(version)} ({version}) regulation",
+                            LOGTYPE.ERROR);
+                        continue;
+                    }
+
                     if (isUserOverrideFolder)
                     {
-                        string hash = RegulationArchiveManifest.ComputeSha256(candidate);
-                        if (!string.Equals(hash, manifestEntry.Sha256, StringComparison.OrdinalIgnoreCase))
-                        {
-                            mainLog.AddSubLog(
-                                $"Rejected non-vanilla baseline {candidate}: SHA-256 does not match the known vanilla " +
-                                $"{Utils.ParseParamVersion(version)} ({version}) regulation",
-                                LOGTYPE.ERROR);
-                            continue;
-                        }
-
                         result[version] = candidate;
                         mainLog.AddSubLog(
                             $"Verified user vanilla baseline override for {Utils.ParseParamVersion(version)} ({version})");
