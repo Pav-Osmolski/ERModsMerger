@@ -40,7 +40,16 @@ public class RegulationEndToEndTests
         {
             using var currentVanilla = new RegulationBin(currentPath);
 
-            foreach (string version in RepresentativeVersions)
+            IReadOnlyList<string> versions = string.Equals(
+                    Environment.GetEnvironmentVariable("ERMM_FULL_REGULATION_MATRIX"),
+                    "1",
+                    StringComparison.Ordinal)
+                ? RegulationArchiveManifest.Load().Regulations
+                    .Select(entry => entry.AssetFolder)
+                    .ToList()
+                : RepresentativeVersions;
+
+            foreach (string version in versions)
             {
                 string sourcePath = Path.Combine(assetsRoot, "Regulations", version, "regulation.bin");
                 Assert.True(File.Exists(sourcePath), $"Missing test baseline {version}");
