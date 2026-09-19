@@ -49,13 +49,16 @@ jobs:
       - name: Test semantic regulation merging
         run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
 
-      - name: Upload compiled output
+      - name: Build compact CI package
+        if: success()
+        shell: pwsh
+        run: ./tools/Build-ReleasePackage.ps1 -VersionLabel "ci-${{ github.sha }}"
+
+      - name: Upload compiled package
         if: success()
         uses: actions/upload-artifact@v7
         with:
           name: ERModsMerger-build-${{ github.sha }}
           if-no-files-found: error
           retention-days: 14
-          path: |
-            ERModsMerger/bin/Release/net8.0-windows/**
-            ERModsManager/bin/Release/net8.0-windows/**
+          path: artifacts/release/*.zip
