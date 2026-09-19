@@ -137,16 +137,39 @@ namespace ERModsMerger.Core.Formats
                 {
                     if (targetRow == null)
                     {
-                        PARAMDEF? targetDef = targetParam.AppliedParamdef ?? targetParam.Rows.FirstOrDefault()?.Def;
-                        if (targetDef == null)
+                        PARAM.Row? fallbackRow = null;
+                        if (fallbackParams != null &&
+                            fallbackParams.TryGetValue(change.ParamKey, out PARAM? fallbackParam))
                         {
-                            log?.Invoke(
-                                $"Skipped added row {change.ParamKey}:{change.RowID}: no target ParamDef is available",
-                                LOGTYPE.WARNING);
-                            continue;
+                            List<PARAM.Row> fallbackMatches = fallbackParam.Rows
+                                .Where(row => row.ID == change.RowID)
+                                .ToList();
+
+                            if (fallbackMatches.Count == 1)
+                                fallbackRow = fallbackMatches[0];
                         }
 
-                        targetRow = new PARAM.Row(change.RowID, change.Name, targetDef);
+                        if (fallbackRow != null)
+                        {
+                            targetRow = new PARAM.Row(fallbackRow);
+                            log?.Invoke(
+                                $"Restored {change.ParamKey}:{change.RowID} from current vanilla before applying a higher-priority added row",
+                                LOGTYPE.WARNING);
+                        }
+                        else
+                        {
+                            PARAMDEF? targetDef = targetParam.AppliedParamdef ?? targetParam.Rows.FirstOrDefault()?.Def;
+                            if (targetDef == null)
+                            {
+                                log?.Invoke(
+                                    $"Skipped added row {change.ParamKey}:{change.RowID}: no target ParamDef is available",
+                                    LOGTYPE.WARNING);
+                                continue;
+                            }
+
+                            targetRow = new PARAM.Row(change.RowID, change.Name, targetDef);
+                        }
+
                         InsertRowSorted(targetParam.Rows, targetRow);
                     }
 
