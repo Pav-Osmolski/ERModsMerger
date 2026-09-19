@@ -14,14 +14,14 @@ concurrency:
 
 jobs:
   release:
-    if: github.event.head_commit.message == 'Publish ERModsMerger v1.4.0 fast'
+    if: github.event.head_commit.message == 'Publish ERModsMerger v1.4.0 final'
     runs-on: windows-latest
 
     steps:
       - name: Checkout release commit
         uses: actions/checkout@v7
         with:
-          ref: 4101ccaf8bbff947fbd48fbae09e1bd9c2032fe9
+          ref: 7a377cc0fae8d9c30856a520a60a28bbf2a65f87
           fetch-depth: 0
 
       - name: Set up .NET 8
@@ -61,7 +61,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch --tags --force
           if (-not (git tag --list "v1.4.0")) {
-            git tag -a v1.4.0 4101ccaf8bbff947fbd48fbae09e1bd9c2032fe9 -m "ERModsMerger v1.4.0"
+            git tag -a v1.4.0 7a377cc0fae8d9c30856a520a60a28bbf2a65f87 -m "ERModsMerger v1.4.0"
             git push origin v1.4.0
           }
 
@@ -74,7 +74,7 @@ jobs:
             gh release upload v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --clobber
             gh release edit v1.4.0 --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest
           } else {
-            gh release create v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest --target 4101ccaf8bbff947fbd48fbae09e1bd9c2032fe9
+            gh release create v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest --target 7a377cc0fae8d9c30856a520a60a28bbf2a65f87
           }
 
       - name: Upload release package artifact
