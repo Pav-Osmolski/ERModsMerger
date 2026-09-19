@@ -1,3 +1,4 @@
+using ERModsMerger.Core.Formats;
 using SoulsFormats;
 using System.Text.Json;
 using Xunit;
@@ -23,6 +24,8 @@ public class RegulationArchiveCompatibilityTests
             .EnumerateFiles(paramDefsPath, "*.xml")
             .Select(path => PARAMDEF.XmlDeserialize(path, true))
             .ToDictionary(def => def.ParamType, StringComparer.OrdinalIgnoreCase);
+
+        var compatibilityFailures = new List<string>();
 
         foreach (ManifestRegulation regulation in manifest.Regulations)
         {
@@ -50,24 +53,43 @@ public class RegulationArchiveCompatibilityTests
                 PARAM param = PARAM.ReadIgnoreCompression(binderFile.Bytes);
                 string paramName = Path.GetFileNameWithoutExtension(binderFile.Name);
 
-                Assert.False(
-                    string.IsNullOrWhiteSpace(param.ParamType),
-                    $"{regulation.AssetFolder}/{paramName}: PARAM has no ParamType.");
+                if (string.IsNullOrWhiteSpace(param.ParamType))
+                {
+                    compatibilityFailures.Add(
+                        $"{regulation.AssetFolder}/{paramName}: PARAM has no ParamType.");
+                    continue;
+                }
 
-                Assert.True(
-                    paramDefs.TryGetValue(param.ParamType, out PARAMDEF? versionAwareDef),
-                    $"{regulation.AssetFolder}/{paramName}: missing ParamDef for {param.ParamType}.");
+                if (!paramDefs.TryGetValue(param.ParamType, out PARAMDEF? versionAwareDef))
+                {
+                    compatibilityFailures.Add(
+                        $"{regulation.AssetFolder}/{paramName}: missing ParamDef for {param.ParamType}.");
+                    continue;
+                }
 
-                PARAMDEF effectiveDef = versionAwareDef!.VersionAware
-                    ? versionAwareDef.GetFilteredParamdefForRegulationVersion(rawVersion)
-                    : versionAwareDef;
+                if (!RegulationParamDefCompatibility.TryApply(
+                        param,
+                        versionAwareDef,
+                        rawVersion,
+                        out _))
+                {
+                    PARAMDEF effectiveDef = versionAwareDef.VersionAware
+                        ? versionAwareDef.GetFilteredParamdefForRegulationVersion(rawVersion)
+                        : versionAwareDef;
 
-                Assert.True(
-                    param.ApplyParamdefCarefully(effectiveDef),
-                    $"{regulation.AssetFolder}/{paramName}: ParamDef mismatch for {param.ParamType}, " +
-                    $"regulation {rawVersion}, data version {param.ParamdefDataVersion}, detected row size {param.DetectedSize}.");
+                    compatibilityFailures.Add(
+                        $"{regulation.AssetFolder}/{paramName}: ParamDef mismatch for {param.ParamType}, " +
+                        $"regulation {rawVersion}, PARAM data version {param.ParamdefDataVersion}, " +
+                        $"ParamDef data version {effectiveDef.DataVersion}, detected row size {param.DetectedSize}, " +
+                        $"ParamDef row size {effectiveDef.GetRowSize()}.");
+                }
             }
         }
+
+        Assert.True(
+            compatibilityFailures.Count == 0,
+            "Bundled regulation compatibility failures:" + Environment.NewLine +
+            string.Join(Environment.NewLine, compatibilityFailures));
     }
 
     private static string FindRepositoryRoot()
