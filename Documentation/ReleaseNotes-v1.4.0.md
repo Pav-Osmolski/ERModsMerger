@@ -107,7 +107,7 @@ The release pipeline:
 - validates every bundled regulation against its version-aware ParamDefs;
 - runs semantic merge and priority/conflict tests;
 - runs real encrypted end-to-end migration tests;
-- runs the full 34-version end-to-end matrix before a tagged release;
+- runs three representative encrypted migrations during routine CI/release validation; the full 34-version migration sweep is available manually through the Deep Regulation Regression workflow;
 - builds a compact Windows x64 package containing the manager, console merger, one shared `Assets.zip`, README and licence.
 
 ## Packaging
