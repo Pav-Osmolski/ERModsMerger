@@ -114,3 +114,5 @@ finally {
 }
 
 Write-Host "Rebuilt and verified Assets.zip: $assetsZipPath"
+Write-Host ""
+& (Join-Path $PSScriptRoot 'Test-RegulationAssets.ps1')
