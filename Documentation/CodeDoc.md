@@ -172,7 +172,7 @@ CI generates `Assets.zip` first and then verifies the loose regulation files and
 - validation of all 34 bundled vanilla regulations;
 - real encrypted end-to-end migration tests.
 
-Pull-request CI exercises representative schema eras. Release validation sets `ERMM_FULL_REGULATION_MATRIX=1` and runs the end-to-end migration path across all 34 manifest versions before packaging.
+Routine CI and releases run three representative encrypted migrations (`1.00.0`, `1.12.1`, and `1.16.1`) while still validating all 34 bundled regulations structurally. The exhaustive 34-version encrypted migration sweep is available on demand through the **Deep Regulation Regression** workflow.
 
 ## Build and release
 
