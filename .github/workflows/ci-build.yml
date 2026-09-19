@@ -21,6 +21,10 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
+
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v6
         with:
