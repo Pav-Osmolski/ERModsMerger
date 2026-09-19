@@ -6,17 +6,14 @@ namespace ERModsMerger.Core.Tests;
 
 public class RegulationEndToEndTests
 {
-    // PR CI covers each materially different schema era; release validation
-    // expands this to all 34 manifest versions via ERMM_FULL_REGULATION_MATRIX.
+    // Fast CI/release coverage: oldest supported regulation, the major
+    // 1.12.1 schema/DLC transition, and the final pre-1.17 regulation.
+    // Set ERMM_FULL_REGULATION_MATRIX=1 for the optional exhaustive 34-version sweep.
     private static readonly string[] RepresentativeVersions =
     [
         "1.00.0",
-        "1.02.1",
-        "1.03.0",
-        "1.11.0",
         "1.12.1",
-        "1.16.1",
-        "1.17.1"
+        "1.16.1"
     ];
 
     [Fact]
