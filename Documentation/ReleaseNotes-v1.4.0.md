@@ -102,9 +102,9 @@ Regulation assets can be independently verified with:
 
 The release pipeline:
 
-- validates all 34 regulation assets;
+- hash/package-validates all 34 regulation assets;
 - builds the solution on Windows / .NET 8 with maintained-project warnings treated as errors;
-- validates every bundled regulation against its version-aware ParamDefs;
+- fully validates representative regulations against their version-aware ParamDefs;
 - runs semantic merge and priority/conflict tests;
 - runs real encrypted end-to-end migration tests;
 - runs three representative encrypted migrations during routine CI/release validation; the full 34-version migration sweep is available manually through the Deep Regulation Regression workflow;
