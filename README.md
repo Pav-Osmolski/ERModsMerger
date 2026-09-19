@@ -1,5 +1,22 @@
 This fork updates ERModsMerger for current Elden Ring versions and adds safer multi-version regulation merging.
 
+## v1.4.0 highlights
+
+v1.4.0 is a major reliability and compatibility update focused on regulation merging across Elden Ring versions.
+
+- Supports the complete bundled vanilla regulation archive from **1.00 through 1.17.1**.
+- Migrates older mod changes onto the current regulation using an exact-version three-way merge.
+- Uses version-aware ParamDefs and semantic row/field matching instead of positional assumptions.
+- Verifies bundled, user-supplied and installed-game vanilla baselines with SHA-256.
+- Detects unsupported future game versions and fails closed before changing output.
+- Reports cross-mod PARAM field conflicts and preserves the configured priority order.
+- Writes merged regulations transactionally with verification and a `regulation.bin.bak` fallback.
+- Includes manager-side regulation readiness information before merging.
+- Adds exhaustive archive/ParamDef validation, semantic tests and real encrypted end-to-end migration tests.
+- Modernises CI/release packaging and generates `Assets.zip` from the maintained `Assets/` source tree.
+
+These multi-version regulation, validation, hardening and release improvements were developed by **DeViLhoOD**.
+
 ## Multi-version regulation support
 
 ERModsMerger can merge a mod built against an older Elden Ring regulation into the currently installed regulation without treating FromSoftware's intervening balance/schema changes as mod edits.
@@ -105,6 +122,7 @@ Run the console app with /merge argument to automatically merge mods located ins
 If you wish to contribute to this project, you are very welcome. A simple [code documentation](https://github.com/MadTekN1/ERModsMerger/blob/main/Documentation/CodeDoc.md) is available to help you get started. Enjoy coding :)
 
 ## Credits & Thanks
+* **DeViLhoOD** - multi-version regulation support, historical compatibility work, merge hardening, validation, CI/release improvements and ongoing maintenance of this fork.
 * [SoulsMods](https://github.com/soulsmods)
 * [Smithbox](https://github.com/vawser/Smithbox)
 * [Nordgaren](https://github.com/Nordgaren)
