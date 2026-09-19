@@ -21,11 +21,10 @@ namespace ERModsMerger.Core.Formats
             ModsMergerConfig.LoadedConfig!.AppDataFolderPath,
             "VanillaRegulations");
 
-        public static string BaselineFolderPath => UserBaselineFolderPath;
-
         public static Dictionary<ulong, string> Build(
             string currentGameRegulationPath,
             ulong currentGameVersion,
+            RegulationArchiveManifest manifest,
             LOG mainLog)
         {
             var result = new Dictionary<ulong, string>
@@ -36,8 +35,21 @@ namespace ERModsMerger.Core.Formats
             Directory.CreateDirectory(BundledBaselineFolderPath);
             Directory.CreateDirectory(UserBaselineFolderPath);
 
-            IndexFolder(BundledBaselineFolderPath, result, currentGameVersion, overwriteHistorical: false, mainLog);
-            IndexFolder(UserBaselineFolderPath, result, currentGameVersion, overwriteHistorical: true, mainLog);
+            IndexFolder(
+                BundledBaselineFolderPath,
+                result,
+                currentGameVersion,
+                manifest,
+                isUserOverrideFolder: false,
+                mainLog);
+
+            IndexFolder(
+                UserBaselineFolderPath,
+                result,
+                currentGameVersion,
+                manifest,
+                isUserOverrideFolder: true,
+                mainLog);
 
             mainLog.AddSubLog(
                 $"Indexed {result.Count} vanilla regulation version(s). " +
@@ -50,7 +62,8 @@ namespace ERModsMerger.Core.Formats
             string folder,
             Dictionary<ulong, string> result,
             ulong currentGameVersion,
-            bool overwriteHistorical,
+            RegulationArchiveManifest manifest,
+            bool isUserOverrideFolder,
             LOG mainLog)
         {
             foreach (string candidate in Directory.EnumerateFiles(folder, "*.bin", SearchOption.AllDirectories)
@@ -59,31 +72,46 @@ namespace ERModsMerger.Core.Formats
                 try
                 {
                     if (!RegulationBin.TryReadVersion(candidate, out ulong version))
+                    {
+                        mainLog.AddSubLog($"Ignored unreadable baseline {candidate}", LOGTYPE.WARNING);
                         continue;
+                    }
 
                     if (version == currentGameVersion)
                         continue;
 
-                    if (result.TryGetValue(version, out string? existing))
+                    if (!manifest.TryGet(version, out RegulationArchiveEntry? manifestEntry))
                     {
-                        if (overwriteHistorical)
-                        {
-                            mainLog.AddSubLog(
-                                $"Baseline override for {Utils.ParseParamVersion(version)} ({version}): {candidate}",
-                                LOGTYPE.WARNING);
-                            result[version] = candidate;
-                        }
-                        else
-                        {
-                            mainLog.AddSubLog(
-                                $"Duplicate bundled baseline for {Utils.ParseParamVersion(version)} ({version}); keeping {existing}",
-                                LOGTYPE.WARNING);
-                        }
-
+                        mainLog.AddSubLog(
+                            $"Ignored unsupported baseline {candidate}: regulation {Utils.ParseParamVersion(version)} ({version}) is not in the tested archive manifest",
+                            LOGTYPE.WARNING);
                         continue;
                     }
 
-                    result.Add(version, candidate);
+                    if (isUserOverrideFolder)
+                    {
+                        string hash = RegulationArchiveManifest.ComputeSha256(candidate);
+                        if (!string.Equals(hash, manifestEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                        {
+                            mainLog.AddSubLog(
+                                $"Rejected non-vanilla baseline {candidate}: SHA-256 does not match the known vanilla " +
+                                $"{Utils.ParseParamVersion(version)} ({version}) regulation",
+                                LOGTYPE.ERROR);
+                            continue;
+                        }
+
+                        result[version] = candidate;
+                        mainLog.AddSubLog(
+                            $"Verified user vanilla baseline override for {Utils.ParseParamVersion(version)} ({version})");
+                        continue;
+                    }
+
+                    if (!result.TryAdd(version, candidate))
+                    {
+                        mainLog.AddSubLog(
+                            $"Duplicate bundled baseline for {Utils.ParseParamVersion(version)} ({version}); keeping {result[version]}",
+                            LOGTYPE.WARNING);
+                    }
                 }
                 catch (Exception ex)
                 {
