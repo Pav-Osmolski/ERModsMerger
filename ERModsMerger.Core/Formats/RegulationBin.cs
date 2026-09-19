@@ -60,18 +60,11 @@ namespace ERModsMerger.Core.Formats
 
         private Dictionary<string, PARAMDEF> LoadParamDefs()
         {
-            var paramdefs = new Dictionary<string, PARAMDEF>(StringComparer.OrdinalIgnoreCase);
-            string paramDefsPath = Path.Combine(ModsMergerConfig.LoadedConfig!.AppDataFolderPath, "ParamDefs");
+            string paramDefsPath = Path.Combine(
+                ModsMergerConfig.LoadedConfig!.AppDataFolderPath,
+                "ParamDefs");
 
-            foreach (string file in Directory.GetFiles(paramDefsPath, "*.xml"))
-            {
-                // Read all FirstVersion/RemovedVersion metadata. We then filter the definition
-                // to this regulation's exact raw version before applying it to a PARAM.
-                PARAMDEF paramdef = PARAMDEF.XmlDeserialize(file, true);
-                paramdefs[paramdef.ParamType] = paramdef;
-            }
-
-            return paramdefs;
+            return RegulationParamDefCatalog.Load(paramDefsPath);
         }
 
         private void Load()
