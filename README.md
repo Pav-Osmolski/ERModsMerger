@@ -18,7 +18,13 @@ ERModsMergerConfig\Regulations\
 
 The installed game's `regulation.bin` always wins for the current version. Optional user-supplied baselines under `ERModsMergerConfig\VanillaRegulations\` can supplement or override historical bundled versions. Filenames do not determine compatibility: ERModsMerger reads the raw BND regulation version from each file.
 
-Before merging, a preflight reports every historical version required by the selected mods and flags missing or unreadable baselines before any output is changed. If an exact baseline is unavailable, that mod is skipped rather than compared against the wrong vanilla version.
+Before merging, a preflight reports every historical version required by the selected mods and flags missing, unreadable or unsupported baselines before any output is changed. If preflight fails, regulation merging is aborted rather than producing a partial result.
+
+User-supplied historical baselines are SHA-256 checked against the known vanilla manifest before they can override bundled data. An installed game regulation that is not in the tested manifest is also blocked, so a future Elden Ring patch cannot be merged until its regulation and ParamDefs have been added and validated.
+
+When two mods change the same PARAM row/field to different values, the merge log reports the conflict and the later processed (higher-priority) mod wins. Row deletion/edit conflicts are handled consistently with the same priority model. The manager also shows a lightweight regulation readiness strip with the installed game version, detected mod versions, migration count and baseline/support state.
+
+Merged regulation output is written transactionally: the temporary encrypted result is reopened and version-checked before replacing the previous output. When a previous merged regulation exists, it is preserved as `regulation.bin.bak`.
 
 ### Maintaining the regulation archive
 
@@ -30,7 +36,13 @@ To refresh the bundled assets from a complete archive:
 .\tools\Import-RegulationArchive.ps1 -ArchivePath "C:\path\to\ER Regulation Archive.zip"
 ```
 
-The importer normalises folder names, verifies all 34 files against the manifest, rebuilds `Assets.zip`, and then verifies that the loose regulation files and the packaged copies are byte-identical. CI runs the same asset validation on every push and pull request, so `Assets/Regulations` and `Assets.zip` cannot silently drift apart.
+The importer normalises folder names and verifies all 34 files against the manifest. `Assets/` is the source of truth; `Assets.zip` is generated from it by `tools/Build-AssetsArchive.ps1`, ignored by Git, and validated in CI. This avoids large binary archive churn in Git history and makes it impossible for a committed ZIP to become stale.
+
+Release/CI packaging uses `tools/Build-ReleasePackage.ps1` to publish both executables as framework-dependent single files and ship one shared `Assets.zip` beside them. Tagging `v*` runs the tested release workflow and publishes the resulting ZIP; the same workflow can be run manually to produce a prerelease package without creating a GitHub release.
+
+### Validation and regression coverage
+
+CI runs on Windows with .NET 8, treats maintained-project warnings as errors, validates the complete 34-version regulation archive, and tests every bundled regulation against the version-aware ParamDefs. It also runs semantic merge unit tests plus an end-to-end migration matrix that decrypts historical regulations, creates controlled mod edits, re-encrypts them, migrates them into the current baseline, saves transactionally and reloads the result.
 
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
