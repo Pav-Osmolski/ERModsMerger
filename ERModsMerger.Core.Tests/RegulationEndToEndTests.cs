@@ -83,14 +83,15 @@ public class RegulationEndToEndTests
 
                 using var reloadedOutput = new RegulationBin(outputPath);
                 PARAM.Row resultRow = Assert.Single(
-                    reloadedOutput.Params[candidate.ParamKey].Rows.Where(row => row.ID == candidate.RowId));
+                    reloadedOutput.Params[candidate.ParamKey].Rows,
+                    row => row.ID == candidate.RowId);
 
                 PARAM.Cell resultCell = Assert.Single(
-                    resultRow.Cells.Where(cell =>
-                        string.Equals(
-                            cell.Def.InternalName,
-                            candidate.FieldName,
-                            StringComparison.Ordinal)));
+                    resultRow.Cells,
+                    cell => string.Equals(
+                        cell.Def.InternalName,
+                        candidate.FieldName,
+                        StringComparison.Ordinal));
 
                 Assert.True(
                     ValuesEqual(resultCell.Value, changedValue),
