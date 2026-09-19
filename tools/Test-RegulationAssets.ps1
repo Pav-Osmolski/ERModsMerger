@@ -40,10 +40,6 @@ try {
         $entries[$entry.FullName] = $entry
     }
 
-    if (-not $entries.ContainsKey('Regulations/manifest.json')) {
-        throw 'Assets.zip is missing Regulations/manifest.json'
-    }
-
     foreach ($regulation in $manifest.regulations) {
         $loosePath = Join-Path (Join-Path $regulationsRoot $regulation.assetFolder) 'regulation.bin'
         if (-not (Test-Path -LiteralPath $loosePath)) {
