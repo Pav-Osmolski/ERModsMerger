@@ -9,7 +9,7 @@ namespace ERModsMerger.Core
     {
         /// <summary>
         /// Extracts the embedded Assets archive to the app-data folder, then overlays
-        /// loose versioned ParamDefs and regulation baselines from the repository.
+        /// any ParamDefs that must supersede the archive contents.
         /// </summary>
         public static void ExtractAssets()
         {
@@ -30,7 +30,6 @@ namespace ERModsMerger.Core
             }
 
             ExtractParamDefOverrides(assembly, resourceNames, folderPath);
-            ExtractRegulationBaselines(assembly, resourceNames, folderPath);
         }
 
         private static void ExtractParamDefOverrides(Assembly assembly, string[] resourceNames, string folderPath)
@@ -47,32 +46,6 @@ namespace ERModsMerger.Core
 
                 string fileName = resourceName[(markerIndex + marker.Length)..];
                 CopyResource(assembly, resourceName, Path.Combine(paramDefsPath, fileName));
-            }
-        }
-
-        private static void ExtractRegulationBaselines(Assembly assembly, string[] resourceNames, string folderPath)
-        {
-            const string marker = ".ERModsMergerRegulations.";
-            const string suffix = ".regulation.bin";
-            string regulationsPath = Path.Combine(folderPath, "Regulations");
-            Directory.CreateDirectory(regulationsPath);
-
-            foreach (string resourceName in resourceNames)
-            {
-                int markerIndex = resourceName.IndexOf(marker, StringComparison.Ordinal);
-                if (markerIndex < 0 || !resourceName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                string version = resourceName[
-                    (markerIndex + marker.Length)..
-                    (resourceName.Length - suffix.Length)];
-
-                if (string.IsNullOrWhiteSpace(version))
-                    continue;
-
-                string targetDirectory = Path.Combine(regulationsPath, version);
-                Directory.CreateDirectory(targetDirectory);
-                CopyResource(assembly, resourceName, Path.Combine(targetDirectory, "regulation.bin"));
             }
         }
 
