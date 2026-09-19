@@ -12,6 +12,7 @@ namespace ERModsMerger.Core.Formats
             ulong? RegulationVersion,
             string DisplayVersion,
             bool IsCurrentVersion,
+            bool IsSupported,
             bool HasBaseline,
             string? Error);
 
@@ -19,7 +20,10 @@ namespace ERModsMerger.Core.Formats
         {
             public IReadOnlyList<Entry> Entries { get; }
             public int InvalidCount => Entries.Count(entry => entry.Error != null);
-            public int MissingBaselineCount => Entries.Count(entry => entry.Error == null && !entry.HasBaseline);
+            public int UnsupportedCount => Entries.Count(entry => entry.Error == null && !entry.IsSupported);
+            public int MissingBaselineCount => Entries.Count(entry => entry.Error == null && entry.IsSupported && !entry.HasBaseline);
+            public bool CanMerge => InvalidCount == 0 && UnsupportedCount == 0 && MissingBaselineCount == 0;
+
             public IReadOnlyList<ulong> RequiredHistoricalVersions => Entries
                 .Where(entry => entry.RegulationVersion.HasValue && !entry.IsCurrentVersion)
                 .Select(entry => entry.RegulationVersion!.Value)
@@ -36,7 +40,8 @@ namespace ERModsMerger.Core.Formats
         public static Result Analyze(
             IEnumerable<string> regulationPaths,
             ulong currentVersion,
-            IReadOnlyDictionary<ulong, string> baselines)
+            IReadOnlyDictionary<ulong, string> baselines,
+            RegulationArchiveManifest manifest)
         {
             var entries = new List<Entry>();
 
@@ -45,22 +50,20 @@ namespace ERModsMerger.Core.Formats
                 if (!RegulationBin.TryReadVersion(path, out ulong version))
                 {
                     entries.Add(new Entry(
-                        path,
-                        null,
-                        "Unknown",
-                        false,
-                        false,
+                        path, null, "Unknown", false, false, false,
                         "Could not read regulation version"));
                     continue;
                 }
 
                 bool isCurrent = version == currentVersion;
+                bool isSupported = manifest.Contains(version);
                 bool hasBaseline = isCurrent || baselines.ContainsKey(version);
                 entries.Add(new Entry(
                     path,
                     version,
                     Utils.ParseParamVersion(version),
                     isCurrent,
+                    isSupported,
                     hasBaseline,
                     null));
             }
@@ -78,7 +81,8 @@ namespace ERModsMerger.Core.Formats
                 : string.Join(", ", result.RequiredHistoricalVersions.Select(version =>
                     $"{Utils.ParseParamVersion(version)} ({version})"));
 
-            mainLog.AddSubLog($"Regulation preflight: {result.Entries.Count} mod regulation(s); historical baselines required: {required}");
+            mainLog.AddSubLog(
+                $"Regulation preflight: {result.Entries.Count} mod regulation(s); historical baselines required: {required}");
 
             foreach (Entry entry in result.Entries)
             {
@@ -90,6 +94,15 @@ namespace ERModsMerger.Core.Formats
                     continue;
                 }
 
+                if (!entry.IsSupported)
+                {
+                    mainLog.AddSubLog(
+                        $"{fileName}: unsupported regulation {entry.DisplayVersion} ({entry.RegulationVersion}); " +
+                        "update ERModsMerger's regulation archive/ParamDefs before merging this version",
+                        LOGTYPE.ERROR);
+                    continue;
+                }
+
                 if (!entry.HasBaseline)
                 {
                     mainLog.AddSubLog(
@@ -98,12 +111,13 @@ namespace ERModsMerger.Core.Formats
                 }
             }
 
-            if (result.MissingBaselineCount == 0 && result.InvalidCount == 0)
+            if (result.CanMerge)
                 mainLog.AddSubLog("Regulation preflight passed ✓", LOGTYPE.SUCCESS);
             else
                 mainLog.AddSubLog(
-                    $"Regulation preflight found {result.MissingBaselineCount} missing baseline(s) and {result.InvalidCount} unreadable regulation(s)",
-                    LOGTYPE.WARNING);
+                    $"Regulation preflight failed: {result.MissingBaselineCount} missing baseline(s), " +
+                    $"{result.UnsupportedCount} unsupported version(s), {result.InvalidCount} unreadable regulation(s)",
+                    LOGTYPE.ERROR);
         }
     }
 }
