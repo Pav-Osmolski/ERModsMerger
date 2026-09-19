@@ -24,10 +24,14 @@ namespace ERModsMerger.Core.Formats
         public ulong RegulationVersion { get; }
         public string Version => Utils.ParseParamVersion(RegulationVersion);
 
-        private static LOG RegLog = null!;
+        private static LOG? RegLog;
 
-        public RegulationBin(string path)
+        public RegulationBin(string path, LOG? log = null)
         {
+            if (log != null)
+                RegLog = log;
+            RegLog ??= LOG.Log("Regulation");
+
             Params = new Dictionary<string, PARAM>(StringComparer.OrdinalIgnoreCase);
             bnd = SFUtil.DecryptERRegulation(path);
             RegulationVersion = Convert.ToUInt64(bnd.Version);
@@ -72,9 +76,9 @@ namespace ERModsMerger.Core.Formats
 
         private void Load()
         {
-            RegLog.AddSubLog($"Regulation version: {Version} ({RegulationVersion})");
+            RegLog!.AddSubLog($"Regulation version: {Version} ({RegulationVersion})");
 
-            LOG progressLog = RegLog.AddSubLog("Progress: 0%");
+            LOG progressLog = RegLog!.AddSubLog("Progress: 0%");
             int loadedParams = 0;
             int skippedParams = 0;
 
@@ -105,7 +109,7 @@ namespace ERModsMerger.Core.Formats
                         out bool toleratedDataVersionMismatch))
                 {
                     string paramNameForLog = Path.GetFileNameWithoutExtension(binderFile.Name);
-                    RegLog.AddSubLog(
+                    RegLog!.AddSubLog(
                         $"Skipped {paramNameForLog}: no compatible ParamDef for regulation {Version} ({RegulationVersion})",
                         LOGTYPE.WARNING);
                     skippedParams++;
@@ -115,7 +119,7 @@ namespace ERModsMerger.Core.Formats
                 string paramName = Path.GetFileNameWithoutExtension(binderFile.Name);
                 if (toleratedDataVersionMismatch)
                 {
-                    RegLog.AddSubLog(
+                    RegLog!.AddSubLog(
                         $"{paramName}: accepted historical ParamDef data version {param.ParamdefDataVersion} by exact row-size match",
                         LOGTYPE.WARNING);
                 }
@@ -135,11 +139,11 @@ namespace ERModsMerger.Core.Formats
         /// </summary>
         public List<ParamRowToMerge> FindRowsToMerge(Dictionary<string, PARAM> vanillaParams)
         {
-            LOG progressLog = RegLog.AddSubLog("Gathering semantic regulation changes");
+            LOG progressLog = RegLog!.AddSubLog("Gathering semantic regulation changes");
             List<ParamRowToMerge> changes = RegulationMergeEngine.FindRowsToMerge(
                 Params,
                 vanillaParams,
-                (message, type) => RegLog.AddSubLog(message, type));
+                (message, type) => RegLog!.AddSubLog(message, type));
 
             progressLog.Message = $"Gathered {changes.Count} semantic regulation change(s) ✓";
             progressLog.Type = LOGTYPE.SUCCESS;
@@ -147,14 +151,17 @@ namespace ERModsMerger.Core.Formats
             return changes;
         }
 
-        public void ApplyModifiedRows(List<ParamRowToMerge> rows)
+        public void ApplyModifiedRows(
+            List<ParamRowToMerge> rows,
+            Dictionary<string, PARAM>? fallbackParams = null)
         {
-            LOG progressLog = RegLog.AddSubLog("Applying semantic regulation changes");
+            LOG progressLog = RegLog!.AddSubLog("Applying semantic regulation changes");
 
             HashSet<string> modifiedParams = RegulationMergeEngine.ApplyModifiedRows(
                 Params,
                 rows,
-                (message, type) => RegLog.AddSubLog(message, type));
+                fallbackParams,
+                (message, type) => RegLog!.AddSubLog(message, type));
 
             foreach (string paramKey in modifiedParams)
             {
@@ -163,7 +170,7 @@ namespace ERModsMerger.Core.Formats
 
                 if (binderFileIndex == -1)
                 {
-                    RegLog.AddSubLog($"Could not find {paramKey}.param in output regulation", LOGTYPE.ERROR);
+                    RegLog!.AddSubLog($"Could not find {paramKey}.param in output regulation", LOGTYPE.ERROR);
                     continue;
                 }
 
@@ -185,7 +192,7 @@ namespace ERModsMerger.Core.Formats
 
             if (!File.Exists(gameRegulationPath))
             {
-                RegLog.AddSubLog(
+                RegLog!.AddSubLog(
                     $"Could not locate vanilla regulation.bin at {ModsMergerConfig.LoadedConfig.GamePath}. Please verify GamePath in ERModsMergerConfig\\config.json",
                     LOGTYPE.ERROR);
                 return;
@@ -197,7 +204,24 @@ namespace ERModsMerger.Core.Formats
 
             try
             {
-                currentVanilla = new RegulationBin(gameRegulationPath);
+                RegulationArchiveManifest manifest = RegulationArchiveManifest.Load();
+
+                if (!TryReadVersion(gameRegulationPath, out ulong installedVersion))
+                {
+                    RegLog!.AddSubLog("Could not read the installed game's regulation version.", LOGTYPE.ERROR);
+                    return;
+                }
+
+                if (!manifest.Contains(installedVersion))
+                {
+                    RegLog!.AddSubLog(
+                        $"Installed regulation {Utils.ParseParamVersion(installedVersion)} ({installedVersion}) is not supported by this build. " +
+                        $"Latest tested raw version: {manifest.MaxSupportedVersion}. Update ERModsMerger's regulation assets/ParamDefs before merging.",
+                        LOGTYPE.ERROR);
+                    return;
+                }
+
+                currentVanilla = new RegulationBin(gameRegulationPath, RegLog);
 
                 RegLog = mainLog.AddSubLog("Loading initial output regulation from current vanilla");
                 outputRegulation = new RegulationBin(gameRegulationPath);
@@ -205,13 +229,25 @@ namespace ERModsMerger.Core.Formats
                 Dictionary<ulong, string> baselinePaths = RegulationBaselineCatalog.Build(
                     gameRegulationPath,
                     currentVanilla.RegulationVersion,
+                    manifest,
                     mainLog);
 
                 RegulationMergePreflight.Result preflight = RegulationMergePreflight.Analyze(
                     regulationBinFiles.Select(file => file.Path),
                     currentVanilla.RegulationVersion,
-                    baselinePaths);
+                    baselinePaths,
+                    manifest);
                 RegulationMergePreflight.Log(preflight, mainLog);
+
+                if (!preflight.CanMerge)
+                {
+                    RegLog = mainLog.AddSubLog(
+                        "Regulation merge aborted before output changes because preflight failed.",
+                        LOGTYPE.ERROR);
+                    return;
+                }
+
+                var conflictTracker = new RegulationConflictTracker();
 
                 foreach (FileToMerge fileToMerge in regulationBinFiles)
                 {
@@ -234,7 +270,7 @@ namespace ERModsMerger.Core.Formats
                         {
                             if (!baselinePaths.TryGetValue(moddedRegulation.RegulationVersion, out string? baselinePath))
                             {
-                                RegLog.AddSubLog(
+                                RegLog!.AddSubLog(
                                     $"Cannot merge regulation {moddedRegulation.Version} ({moddedRegulation.RegulationVersion}): " +
                                     $"its exact vanilla baseline is missing. Restore the bundled Assets/Regulations entry or put a vanilla regulation.bin " +
                                     $"for this version anywhere under {RegulationBaselineCatalog.UserBaselineFolderPath}",
@@ -256,11 +292,22 @@ namespace ERModsMerger.Core.Formats
                         }
 
                         List<ParamRowToMerge> changes = moddedRegulation.FindRowsToMerge(baseline.Params);
-                        outputRegulation.ApplyModifiedRows(changes);
+
+                        foreach (RegulationConflict conflict in conflictTracker.Observe(relativePathLog, changes))
+                        {
+                            RegLog!.AddSubLog(
+                                $"Priority conflict {conflict.ParamKey}/{conflict.RowId}/{conflict.FieldName}: " +
+                                $"{conflict.PreviousSource} [{conflict.PreviousValue}] -> " +
+                                $"{conflict.WinningSource} [{conflict.WinningValue}]. " +
+                                "Later processed (higher-priority) mod wins.",
+                                LOGTYPE.WARNING);
+                        }
+
+                        outputRegulation.ApplyModifiedRows(changes, currentVanilla.Params);
                     }
                     catch (Exception ex)
                     {
-                        RegLog.AddSubLog(
+                        RegLog!.AddSubLog(
                             $"Could not merge {fileToMerge.Path}. Regulation may be incompatible: {ex.Message}",
                             LOGTYPE.ERROR);
                     }
@@ -272,12 +319,12 @@ namespace ERModsMerger.Core.Formats
                 string outputPath = Path.Combine(
                     ModsMergerConfig.LoadedConfig.CurrentProfile!.MergedModsFolderPath,
                     "regulation.bin");
-                outputRegulation.Save(outputPath);
-                RegLog.AddSubLog($"Saved in: {outputPath}", LOGTYPE.SUCCESS);
+                outputRegulation.SaveTransactional(outputPath);
+                RegLog!.AddSubLog($"Saved and verified: {outputPath}", LOGTYPE.SUCCESS);
             }
             catch (Exception ex)
             {
-                RegLog.AddSubLog($"Could not load or merge regulation.bin: {ex.Message}", LOGTYPE.ERROR);
+                RegLog!.AddSubLog($"Could not load or merge regulation.bin: {ex.Message}", LOGTYPE.ERROR);
             }
             finally
             {
@@ -305,6 +352,49 @@ namespace ERModsMerger.Core.Formats
         public void Save(string path)
         {
             SFUtil.EncryptERRegulation(path, bnd);
+        }
+
+        public void SaveTransactional(string path)
+        {
+            string? directory = Path.GetDirectoryName(path);
+            if (string.IsNullOrWhiteSpace(directory))
+                directory = Directory.GetCurrentDirectory();
+
+            Directory.CreateDirectory(directory);
+
+            string tempPath = Path.Combine(
+                directory,
+                $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+            string backupPath = path + ".bak";
+
+            try
+            {
+                Save(tempPath);
+
+                if (!TryReadVersion(tempPath, out ulong writtenVersion) ||
+                    writtenVersion != RegulationVersion)
+                {
+                    throw new InvalidDataException(
+                        $"Transactional regulation verification failed. Expected version {RegulationVersion}, found {writtenVersion}.");
+                }
+
+                if (File.Exists(path))
+                {
+                    if (File.Exists(backupPath))
+                        File.Delete(backupPath);
+
+                    File.Replace(tempPath, path, backupPath, true);
+                }
+                else
+                {
+                    File.Move(tempPath, path);
+                }
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
         }
 
         public void Dispose()
