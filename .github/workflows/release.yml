@@ -46,7 +46,9 @@ jobs:
       - name: Build
         run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
 
-      - name: Test
+      - name: Test full 34-version regulation matrix
+        env:
+          ERMM_FULL_REGULATION_MATRIX: '1'
         run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
 
       - name: Build compact release package
