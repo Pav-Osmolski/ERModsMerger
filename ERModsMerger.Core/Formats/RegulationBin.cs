@@ -212,11 +212,21 @@ namespace ERModsMerger.Core.Formats
                     return;
                 }
 
-                if (!manifest.Contains(installedVersion))
+                if (!manifest.TryGet(installedVersion, out RegulationArchiveEntry? installedEntry))
                 {
                     RegLog!.AddSubLog(
                         $"Installed regulation {Utils.ParseParamVersion(installedVersion)} ({installedVersion}) is not supported by this build. " +
                         $"Latest tested raw version: {manifest.MaxSupportedVersion}. Update ERModsMerger's regulation assets/ParamDefs before merging.",
+                        LOGTYPE.ERROR);
+                    return;
+                }
+
+                string installedHash = RegulationArchiveManifest.ComputeSha256(gameRegulationPath);
+                if (!string.Equals(installedHash, installedEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    RegLog!.AddSubLog(
+                        $"Installed regulation {Utils.ParseParamVersion(installedVersion)} ({installedVersion}) is not the known vanilla file. " +
+                        "Restore/verify the Elden Ring game files before merging so the current-game baseline is trustworthy.",
                         LOGTYPE.ERROR);
                     return;
                 }
