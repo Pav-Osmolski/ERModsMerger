@@ -76,7 +76,7 @@
     <Field Def="s16 a014_leftWristIO" />
     <Field Def="s16 a014_lefttWeaponRotation" />
     
-    <Field Def="dummy8 legacyPad[32]" RemovedVersion="11210015" />
+    <Field Def="dummy8 legacyPad[32]" FirstVersion="11101000" RemovedVersion="11210015" />
     <Field Def="s16 a015_rightArmFB" FirstVersion="11210015"/>
     <Field Def="s16 a015_rightWristFB" FirstVersion="11210015"/>
     <Field Def="s16 a015_rightWristIO" FirstVersion="11210015"/>
