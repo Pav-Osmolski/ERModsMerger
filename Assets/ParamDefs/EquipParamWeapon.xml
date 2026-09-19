@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <PARAMDEF XmlVersion="2">
   <ParamType>EQUIP_PARAM_WEAPON_ST</ParamType>
   <DataVersion>6</DataVersion>
@@ -1238,8 +1238,8 @@
     </Field>
     
     <Field Def="u8 unknown_0x17c_5:1" FirstVersion="11210015" />
-    <Field Def="u8 unknown_0x17c_6:1" FirstVersion="11210015" />
-    <Field Def="u8 unknown_0x17c_7:1" FirstVersion="11210015" />
+    <Field Def="u8 quickMatchReplenish:1" FirstVersion="11210015" />
+    <Field Def="u8 isWeaponCatalyst:1" FirstVersion="11210015" />
     
     <Field Def="u8 correctType_Magic">
       <DisplayName>補正タイプ（魔法攻撃力）</DisplayName>
@@ -1925,7 +1925,7 @@
       <Maximum>999</Maximum>
       <SortID>9050</SortID>
     </Field>
-    <Field Def="f32 vsPlayerDmgCorrectRate_Disease = 1">
+    <Field Def="f32 vsPlayerDmgCorrectRate_Disease = 1" FirstVersion="10210038">
       <DisplayName>対プレイヤー 疫病ダメージ補正倍率</DisplayName>
       <Description>プレイヤーに対する攻撃のみ、与えるダメージを補正する。</Description>
       <DisplayFormat>%0.3f</DisplayFormat>
@@ -1934,7 +1934,7 @@
       <Increment>0.001</Increment>
       <SortID>7810</SortID>
     </Field>
-    <Field Def="f32 vsPlayerDmgCorrectRate_Curse = 1">
+    <Field Def="f32 vsPlayerDmgCorrectRate_Curse = 1" FirstVersion="10210038">
       <DisplayName>対プレイヤー 呪ダメージ補正倍率</DisplayName>
       <Description>プレイヤーに対する攻撃のみ、与えるダメージを補正する。</Description>
       <DisplayFormat>%0.3f</DisplayFormat>
@@ -1944,7 +1944,7 @@
       <SortID>7830</SortID>
     </Field>
     
-    <Field Def="dummy8 pad_old[8]" RemovedVersion="11210015" />
+    <Field Def="dummy8 pad_old[8]" FirstVersion="10210038" RemovedVersion="11210015" />
     
     <Field Def="u8 restrictSpecialSwordArt" FirstVersion="11210015" />
     
