@@ -95,7 +95,6 @@ namespace ERModsMerger.Core.Formats
         {
             Console.Write("\n");
             string status = "";
-            string percent = "0";
 
             var mainLog = LOG.Log("Merging FLVER Models");
 
