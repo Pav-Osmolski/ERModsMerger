@@ -44,11 +44,19 @@ namespace ERModsMerger.Core.Formats
                     return Error(paths.Count, "Installed regulation.bin could not be read.");
                 }
 
-                if (!manifest.Contains(currentVersion))
+                if (!manifest.TryGet(currentVersion, out RegulationArchiveEntry? currentEntry))
                 {
                     return Error(
                         paths.Count,
                         $"Installed regulation {Utils.ParseParamVersion(currentVersion)} ({currentVersion}) is newer or unsupported.");
+                }
+
+                string currentHash = RegulationArchiveManifest.ComputeSha256(gamePath);
+                if (!string.Equals(currentHash, currentEntry.Sha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Error(
+                        paths.Count,
+                        $"Installed regulation {Utils.ParseParamVersion(currentVersion)} is not the known vanilla file.");
                 }
 
                 var versions = new List<ulong>();
@@ -130,7 +138,11 @@ namespace ERModsMerger.Core.Formats
                 "regulation.bin");
 
             if (File.Exists(bundled))
-                return true;
+            {
+                string bundledHash = RegulationArchiveManifest.ComputeSha256(bundled);
+                if (string.Equals(bundledHash, entry.Sha256, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
 
             if (!Directory.Exists(RegulationBaselineCatalog.UserBaselineFolderPath))
                 return false;
