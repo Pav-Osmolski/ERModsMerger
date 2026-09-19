@@ -1,0 +1,86 @@
+name: Publish v1.4.0 Fast
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-v1.4.0
+  cancel-in-progress: true
+
+jobs:
+  release:
+    if: github.event.head_commit.message == 'Publish ERModsMerger v1.4.0 fast'
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          ref: 4101ccaf8bbff947fbd48fbae09e1bd9c2032fe9
+          fetch-depth: 0
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Generate Assets.zip
+        shell: pwsh
+        run: ./tools/Build-AssetsArchive.ps1
+
+      - name: Validate all 34 regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
+
+      - name: Restore
+        run: dotnet restore ERModsMerger.sln
+
+      - name: Build warning-free release
+        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+
+      - name: Test representative regulation migrations
+        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
+
+      - name: Build release package
+        shell: pwsh
+        run: ./tools/Build-ReleasePackage.ps1 -VersionLabel "v1.4.0"
+
+      - name: Create v1.4.0 tag
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+          if (-not (git tag --list "v1.4.0")) {
+            git tag -a v1.4.0 4101ccaf8bbff947fbd48fbae09e1bd9c2032fe9 -m "ERModsMerger v1.4.0"
+            git push origin v1.4.0
+          }
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (gh release view v1.4.0 --repo "$env:GITHUB_REPOSITORY" 2>$null) {
+            gh release upload v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --clobber
+            gh release edit v1.4.0 --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest
+          } else {
+            gh release create v1.4.0 artifacts/release/*.zip --repo "$env:GITHUB_REPOSITORY" --title "ERModsMerger v1.4.0" --notes-file Documentation/ReleaseNotes-v1.4.0.md --latest --target 4101ccaf8bbff947fbd48fbae09e1bd9c2032fe9
+          }
+
+      - name: Upload release package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ERModsMerger-v1.4.0
+          if-no-files-found: error
+          retention-days: 30
+          path: artifacts/release/*.zip
