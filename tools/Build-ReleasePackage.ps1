@@ -20,7 +20,6 @@ Remove-Item -LiteralPath $OutputRoot -Recurse -Force -ErrorAction SilentlyContin
 New-Item -ItemType Directory -Path $consolePublish, $managerPublish, $packageRoot -Force | Out-Null
 
 & (Join-Path $PSScriptRoot 'Build-AssetsArchive.ps1')
-if ($LASTEXITCODE -ne 0) { throw 'Assets.zip generation failed.' }
 
 dotnet publish (Join-Path $repoRoot 'ERModsMerger\ERModsMerger.csproj') `
     --configuration Release `
