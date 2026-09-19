@@ -1,3 +1,6 @@
+[![CI Build](https://github.com/Pav-Osmolski/ERModsMerger/actions/workflows/ci-build.yml/badge.svg?branch=main)](https://github.com/Pav-Osmolski/ERModsMerger/actions/workflows/ci-build.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/Pav-Osmolski/ERModsMerger?display_name=tag&sort=semver)](https://github.com/Pav-Osmolski/ERModsMerger/releases/latest)
+
 This fork updates ERModsMerger for current Elden Ring versions and adds safer multi-version regulation merging.
 
 ## v1.4.0 highlights
