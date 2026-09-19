@@ -67,48 +67,5 @@ finally {
 Write-Host ""
 Write-Host "Imported and verified $($manifest.regulations.Count) regulation files."
 Write-Host "Rebuilding Assets.zip..."
-
-$tempZipPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ERModsMerger.Assets.{0}.zip" -f [guid]::NewGuid().ToString('N'))
-$archive = [System.IO.Compression.ZipFile]::Open($tempZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
-
-try {
-    Get-ChildItem -LiteralPath $assetsRoot -File -Recurse |
-        Where-Object { $_.FullName -ne $assetsZipPath } |
-        Sort-Object FullName |
-        ForEach-Object {
-            $relativePath = $_.FullName.Substring($assetsRoot.Length).TrimStart([char[]]@('\', '/')).Replace('\', '/')
-            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-                $archive,
-                $_.FullName,
-                $relativePath,
-                [System.IO.Compression.CompressionLevel]::Optimal
-            ) | Out-Null
-        }
-}
-finally {
-    $archive.Dispose()
-}
-
-Move-Item -LiteralPath $tempZipPath -Destination $assetsZipPath -Force
-
-$rebuilt = [System.IO.Compression.ZipFile]::OpenRead($assetsZipPath)
-try {
-    $entryNames = @{}
-    foreach ($entry in $rebuilt.Entries) {
-        $entryNames[$entry.FullName] = $true
-    }
-
-    foreach ($regulation in $manifest.regulations) {
-        $expected = "Regulations/$($regulation.assetFolder)/regulation.bin"
-        if (-not $entryNames.ContainsKey($expected)) {
-            throw "Rebuilt Assets.zip is missing expected entry: $expected"
-        }
-    }
-}
-finally {
-    $rebuilt.Dispose()
-}
-
-Write-Host "Rebuilt and verified Assets.zip: $assetsZipPath"
-Write-Host ""
+& (Join-Path $PSScriptRoot 'Build-AssetsArchive.ps1') -AssetsRoot $assetsRoot
 & (Join-Path $PSScriptRoot 'Test-RegulationAssets.ps1')
