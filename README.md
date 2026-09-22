@@ -114,8 +114,11 @@ Both workflows produce `MergedMods/regulation.bin`.
 
 - [CSV PARAM merging](Documentation/CSVParamMerging.md)
 - [Code / architecture documentation](Documentation/CodeDoc.md)
-- [v1.5.0 release notes](Documentation/ReleaseNotes-v1.5.0.md)
-- [v1.4.0 release notes](Documentation/ReleaseNotes-v1.4.0.md)
+- [Change log](Documentation/ChangeLog.md)
+
+## Feedback and issues
+
+Use [GitHub Issues](https://github.com/Pav-Osmolski/ERModsMerger/issues) for bug reports, feature requests and active development feedback. The old static feedback/to-do list has been retired so current work is not duplicated across multiple sources.
 
 ## Development and validation
 
