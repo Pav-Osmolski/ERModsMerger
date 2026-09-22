@@ -25,35 +25,62 @@ permissions:
   contents: read
 
 concurrency:
-  # Runs are intentionally queued instead of cancelling one another. With PR
-  # validation gated to meaningful lifecycle events there should be no WIP spam,
-  # and completed main-branch validation history remains useful.
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
   build:
-    # A draft PR opened through the GitHub UI can still emit an "opened" event.
-    # Skip the job until the PR is marked ready; direct/main/manual runs always run.
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Build .NET 8 solution
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
+      # PR validation does not package runtime assets, so avoid pulling the large
+      # regulation archive and unrelated HKS submodule just to compile/test code.
+      - name: Checkout PR sources
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          filter: blob:none
+          sparse-checkout: |
+            ERModsMerger
+            ERModsManager
+            ERModsMerger.Core
+            ERModsMerger.Core.Tests
+            SoulsFormats
+
+      - name: Checkout full repository
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - name: Generate Assets.zip
+      # windows-latest already carries supported .NET SDKs. global.json selects
+      # the required .NET 8 feature band, so PRs only need to verify it resolves.
+      - name: Verify preinstalled .NET 8
+        if: github.event_name == 'pull_request'
         shell: pwsh
-        run: ./tools/Build-AssetsArchive.ps1
+        run: |
+          $version = (dotnet --version).Trim()
+          Write-Host "Resolved .NET SDK: $version"
+          if (-not $version.StartsWith("8.")) {
+              throw "global.json did not resolve a .NET 8 SDK on this runner."
+          }
 
-      - name: Validate regulation assets
-        shell: pwsh
-        run: ./tools/Test-RegulationAssets.ps1
+      - name: Restore PR NuGet cache
+        if: github.event_name == 'pull_request'
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
+      # Main/manual builds keep the explicit SDK installation for reproducible
+      # package generation and retain setup-dotnet's NuGet cache integration.
       - name: Set up .NET 8
+        if: github.event_name != 'pull_request'
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
@@ -66,7 +93,21 @@ jobs:
         run: dotnet restore ERModsMerger.sln
 
       - name: Build
-        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+        shell: pwsh
+        env:
+          ERMM_SKIP_ASSETS: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+        run: >-
+          dotnet build ERModsMerger.sln
+          --configuration Release
+          --no-restore
+          --warnaserror
+          -p:ERModsMergerSkipAssets=$env:ERMM_SKIP_ASSETS
+
+      # Full builds generate Assets.zip through Directory.Build.targets.
+      - name: Validate regulation assets
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
 
       - name: Test fast merge semantics
         run: >-
@@ -76,8 +117,8 @@ jobs:
           --no-restore
           --filter "Category!=SlowIntegration"
 
-      # PR validation only needs to prove the code builds/tests. Package generation
-      # is reserved for main/manual runs where the artifact is actually useful.
+      # PR validation only proves code/build/test correctness. Main/manual builds
+      # retain a useful compiled package with the complete runtime assets.
       - name: Build compact CI package
         if: success() && github.event_name != 'pull_request'
         shell: pwsh
@@ -137,10 +178,6 @@ jobs:
             if gh api --silent --method DELETE "repos/$REPO/actions/runs/$run_id"; then
               echo "Deleted run $run_id"
             else
-              # Some legacy runs from already-removed workflow definitions can
-              # return 404 even though they still appear in the run listing.
-              # Do not let one undeletable record block cleanup of the rest.
               echo "Could not delete run $run_id; continuing"
             fi
           done
-
