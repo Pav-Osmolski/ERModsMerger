@@ -213,6 +213,12 @@ namespace ERModsManager
             Merge();
         }
 
+        private void BtnMergeCsv_Click(object sender, RoutedEventArgs e)
+        {
+            this.Topmost = false;
+            MergeCsv();
+        }
+
         private void BtnPlay_Click(object sender, RoutedEventArgs e)
         {
             MessageBoxResult? messagebox = null;
@@ -256,6 +262,7 @@ namespace ERModsManager
                 ShowLogsUICommand.Execute(null);
 
             BtnMerge.IsEnabled = false;
+            BtnMergeCsv.IsEnabled = false;
             BtnPlay.IsEnabled = false;
 
             MainModsListUC.IsEnabled = false;
@@ -268,12 +275,30 @@ namespace ERModsManager
             });
         }
 
+        private void MergeCsv()
+        {
+            if (MainLogsUC.Visibility == Visibility.Hidden)
+                ShowLogsUICommand.Execute(null);
+
+            BtnMerge.IsEnabled = false;
+            BtnMergeCsv.IsEnabled = false;
+            BtnPlay.IsEnabled = false;
+            MainModsListUC.IsEnabled = false;
+            MainLogsUC.TxtLogs.Text = "";
+
+            Task.Run(() =>
+            {
+                ModsMerger.StartCsvMerge();
+            });
+        }
+
         private void ModsMerger_MergeFinish(bool finished)
         {
             Application.Current.Dispatcher.BeginInvoke(
              DispatcherPriority.Background,
              new Action(() => {
                  this.BtnMerge.IsEnabled = true;
+                 this.BtnMergeCsv.IsEnabled = true;
                  this.BtnPlay.IsEnabled = true;
                  this.MainModsListUC.IsEnabled = true;
                  this.Topmost = true;
