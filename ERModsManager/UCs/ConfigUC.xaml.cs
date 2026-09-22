@@ -54,6 +54,17 @@ namespace ERModsManager.UCs
         }
 
 
+        private void BtnOpenCsvFolder_Click(object sender, RoutedEventArgs e)
+        {
+            ProfileConfig? profile = ModsMergerConfig.LoadedConfig?.CurrentProfile;
+            if (profile == null)
+                return;
+
+            profile.EnsureFolders();
+            Process.Start("explorer.exe", profile.CSVToMergeFolderPath);
+        }
+
+
         public string SearchForEldenRingPath()
         {
             var dialog = new OpenFileDialog();
