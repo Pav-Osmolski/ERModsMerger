@@ -1,3 +1,4 @@
+using ERModsMerger.Core;
 using Xunit;
 
 namespace ERModsMerger.Core.Tests;
