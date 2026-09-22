@@ -303,9 +303,12 @@ namespace ERModsManager
                  this.MainModsListUC.IsEnabled = true;
                  this.Topmost = true;
 
-                 ModsMergerConfig.LoadedConfig.CurrentProfile.Modified = false;
-                 MainModsListUC.MergedIndicatorBorder.Visibility = Visibility.Visible;
-                 ModsMergerConfig.LoadedConfig.Save();
+                 if (finished)
+                 {
+                     ModsMergerConfig.LoadedConfig.CurrentProfile.Modified = false;
+                     MainModsListUC.MergedIndicatorBorder.Visibility = Visibility.Visible;
+                     ModsMergerConfig.LoadedConfig.Save();
+                 }
              }));
 
         }
