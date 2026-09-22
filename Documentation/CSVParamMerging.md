@@ -81,13 +81,13 @@ A single CSV file may not contain the same row ID more than once; duplicate row 
 
 ## Manager
 
-Use **Merge CSV Params** to generate `MergedMods\regulation.bin` from the current verified vanilla regulation plus the CSV changes.
+Use **Merge CSV** to generate `MergedMods\regulation.bin` from the current verified vanilla regulation plus the CSV changes.
 
 The Settings panel includes **Open CSVToMerge folder** for the active profile.
 
 The existing **Merge Mods** action remains unchanged and continues to merge normal mod folders / `regulation.bin` files.
 
-These are separate output workflows in v1.5.0. Running **Merge CSV Params** writes a CSV-derived `MergedMods\regulation.bin`; it does not automatically combine CSV changes with an already merged modded regulation.
+These are separate output workflows in v1.5.0. Running **Merge CSV** writes a CSV-derived `MergedMods\regulation.bin`; it does not automatically combine CSV changes with an already merged modded regulation.
 
 ## Console
 
