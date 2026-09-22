@@ -5,6 +5,7 @@ using Xunit;
 
 namespace ERModsMerger.Core.Tests;
 
+[Trait("Category", "SlowIntegration")]
 public class RegulationArchiveCompatibilityTests
 {
     [Fact]
