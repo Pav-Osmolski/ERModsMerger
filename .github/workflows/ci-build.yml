@@ -123,9 +123,7 @@ jobs:
                     or .conclusion == "stale")
               | [.id, .name, .conclusion, .created_at, .display_title]
               | @tsv' |
-          while IFS=
-
-\t' read -r run_id workflow conclusion created_at title; do
+          while IFS="$(printf '\\t')" read -r run_id workflow conclusion created_at title; do
             if [[ -z "${run_id:-}" || "$run_id" == "$CURRENT_RUN_ID" ]]; then
               continue
             fi
