@@ -44,7 +44,9 @@ ID,Name,attackBasePhysics,attackBaseMagic
 
 Supported separators are comma, semicolon and tab; the separator is detected from the header.
 
-The `Name` column is optional.
+The `Name` column is optional. Smithbox's partial-export form with an empty placeholder column, such as `ID,,attackBasePhysics`, is also accepted.
+
+Row names are used when creating new rows. Existing-row gameplay changes are matched and applied through ParamDef field columns, so row-name metadata does not create a PARAM conflict by itself.
 
 ## Merge semantics
 
