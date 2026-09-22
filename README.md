@@ -114,8 +114,11 @@ Both workflows produce `MergedMods/regulation.bin`.
 
 - [CSV PARAM merging](Documentation/CSVParamMerging.md)
 - [Code / architecture documentation](Documentation/CodeDoc.md)
-- [v1.5.0 release notes](Documentation/ReleaseNotes-v1.5.0.md)
-- [v1.4.0 release notes](Documentation/ReleaseNotes-v1.4.0.md)
+- [Change log](Documentation/ChangeLog.md)
+
+## Feedback and roadmap
+
+See [Feedback and roadmap](Documentation/Feedback-and-Roadmap.md) for current limitations and possible future improvements. Completed work belongs in the changelog, so the roadmap is kept deliberately small and current.
 
 ## Development and validation
 

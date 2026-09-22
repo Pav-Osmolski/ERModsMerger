@@ -57,6 +57,23 @@ jobs:
           $label = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "manual-${{ github.sha }}" }
           ./tools/Build-ReleasePackage.ps1 -VersionLabel $label
 
+      - name: Prepare release notes from changelog
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $changeLog = Get-Content "Documentation/ChangeLog.md" -Raw
+          $escapedTag = [regex]::Escape($tag)
+          $pattern = "(?ms)^##\s+$escapedTag(?:\s+-[^\r\n]*)?\r?\n(?<body>.*?)(?=^##\s+|\z)"
+          $match = [regex]::Match($changeLog, $pattern)
+
+          if (-not $match.Success) {
+              throw "No changelog section found for $tag."
+          }
+
+          $releaseNotes = "# ERModsMerger $tag`r`n`r`n" + $match.Groups["body"].Value.Trim() + "`r`n"
+          Set-Content -Path "artifacts/release/release-notes.md" -Value $releaseNotes -Encoding UTF8
+
       - name: Upload package
         uses: actions/upload-artifact@v7
         with:
@@ -70,6 +87,5 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: ERModsMerger ${{ github.ref_name }}
-          body_path: Documentation/ReleaseNotes-${{ github.ref_name }}.md
-          generate_release_notes: true
+          body_path: artifacts/release/release-notes.md
           files: artifacts/release/*.zip
