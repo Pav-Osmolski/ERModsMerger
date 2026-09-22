@@ -38,7 +38,10 @@ namespace ERModsMerger.Core
                     }
 
                     foreach (ProfileConfig profile in LoadedConfig.Profiles)
+                    {
+                        profile.MigrateLegacyRootFolders(LoadedConfig.AppDataFolderPath);
                         profile.EnsureFolders();
+                    }
 
                     CheckAndAddEnvVars();
                     CheckVersionAndEmbeddedExtraction();
@@ -254,6 +257,111 @@ namespace ERModsMerger.Core
         }
 
        
+
+        /// <summary>
+        /// v1.5.0 briefly wrote the main profile's default working folders beside
+        /// the executable instead of beneath the profile directory. Migrate only
+        /// those exact generated defaults; custom profile paths are left untouched.
+        /// </summary>
+        public bool MigrateLegacyRootFolders(string appDataFolderPath, string? legacyBaseDirectory = null)
+        {
+            legacyBaseDirectory ??= Directory.GetCurrentDirectory();
+
+            string profileFullPath = Path.GetFullPath(ProfileDir, legacyBaseDirectory);
+            string appDataFullPath = Path.GetFullPath(appDataFolderPath, legacyBaseDirectory);
+
+            if (!string.Equals(profileFullPath, appDataFullPath, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            bool changed = false;
+            ModsToMergeFolderPath = MigrateLegacyFolder(ModsToMergeFolderPath, "ModsToMerge", legacyBaseDirectory, ref changed);
+            CSVToMergeFolderPath = MigrateLegacyFolder(CSVToMergeFolderPath, "CSVToMerge", legacyBaseDirectory, ref changed);
+            MergedModsFolderPath = MigrateLegacyFolder(MergedModsFolderPath, "MergedMods", legacyBaseDirectory, ref changed);
+
+            return changed;
+        }
+
+        private string MigrateLegacyFolder(
+            string configuredPath,
+            string folderName,
+            string legacyBaseDirectory,
+            ref bool changed)
+        {
+            if (!IsLegacyGeneratedPath(configuredPath, folderName))
+                return configuredPath;
+
+            string targetPath = Path.Combine(ProfileDir, folderName);
+            string sourceFullPath = Path.GetFullPath(configuredPath, legacyBaseDirectory);
+            string targetFullPath = Path.GetFullPath(targetPath, legacyBaseDirectory);
+
+            if (string.Equals(sourceFullPath, targetFullPath, StringComparison.OrdinalIgnoreCase))
+            {
+                changed = true;
+                return targetPath;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(targetFullPath);
+
+                if (Directory.Exists(sourceFullPath))
+                {
+                    string[] sourceFiles = Directory.GetFiles(sourceFullPath, "*", SearchOption.AllDirectories);
+
+                    foreach (string sourceFile in sourceFiles)
+                    {
+                        string relativePath = Path.GetRelativePath(sourceFullPath, sourceFile);
+                        string destinationFile = Path.Combine(targetFullPath, relativePath);
+
+                        if (File.Exists(destinationFile))
+                            throw new IOException($"Destination already contains '{relativePath}'.");
+                    }
+
+                    foreach (string sourceFile in sourceFiles)
+                    {
+                        string relativePath = Path.GetRelativePath(sourceFullPath, sourceFile);
+                        string destinationFile = Path.Combine(targetFullPath, relativePath);
+                        string? destinationDirectory = Path.GetDirectoryName(destinationFile);
+
+                        if (!string.IsNullOrEmpty(destinationDirectory))
+                            Directory.CreateDirectory(destinationDirectory);
+
+                        File.Move(sourceFile, destinationFile);
+                    }
+
+                    Directory.Delete(sourceFullPath, true);
+                }
+
+                LOG.Log(
+                    $"Migrated legacy {folderName} path into the profile directory: {targetPath}",
+                    LOGTYPE.INFO);
+
+                changed = true;
+                return targetPath;
+            }
+            catch (Exception ex)
+            {
+                LOG.Log(
+                    $"Could not migrate legacy {folderName} folder '{configuredPath}' to '{targetPath}': {ex.Message}",
+                    LOGTYPE.WARNING);
+
+                return configuredPath;
+            }
+        }
+
+        private static bool IsLegacyGeneratedPath(string configuredPath, string folderName)
+        {
+            if (string.IsNullOrWhiteSpace(configuredPath))
+                return false;
+
+            string normalized = configuredPath
+                .Replace('/', '\\')
+                .Trim()
+                .TrimEnd('\\');
+
+            return string.Equals(normalized, folderName, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(normalized, $".\\{folderName}", StringComparison.OrdinalIgnoreCase);
+        }
 
         public void EnsureFolders()
         {
