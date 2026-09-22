@@ -52,6 +52,7 @@ Copy-Item -LiteralPath $consoleExe -Destination $packageRoot
 Copy-Item -LiteralPath $managerExe -Destination $packageRoot
 Copy-Item -LiteralPath $assetsZip -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination $packageRoot
+Copy-Item -LiteralPath (Join-Path $repoRoot 'Documentation\ChangeLog.md') -Destination (Join-Path $packageRoot 'ChangeLog.md')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination $packageRoot
 
 $zipPath = Join-Path $OutputRoot ("ERModsMerger-{0}-win-x64.zip" -f $VersionLabel)
