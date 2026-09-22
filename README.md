@@ -116,9 +116,9 @@ Both workflows produce `MergedMods/regulation.bin`.
 - [Code / architecture documentation](Documentation/CodeDoc.md)
 - [Change log](Documentation/ChangeLog.md)
 
-## Feedback and issues
+## Feedback and roadmap
 
-Use [GitHub Issues](https://github.com/Pav-Osmolski/ERModsMerger/issues) for bug reports, feature requests and active development feedback. The old static feedback/to-do list has been retired so current work is not duplicated across multiple sources.
+See [Feedback and roadmap](Documentation/Feedback-and-Roadmap.md) for current limitations and possible future improvements. Completed work belongs in the changelog, so the roadmap is kept deliberately small and current.
 
 ## Development and validation
 
