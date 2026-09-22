@@ -21,7 +21,9 @@ A new `CSVToMerge` folder is created per profile. CSV files can be placed direct
 - Reuse the semantic conflict tracker for cross-CSV field conflicts.
 - Write output transactionally to `MergedMods/regulation.bin`.
 
-The manager now exposes separate **Merge Mods** and **Merge CSV** actions. The console app adds `/mergecsv`.
+The manager now exposes separate **Merge Mods** and **Merge CSV** actions. The console app adds `/mergecsv` and its interactive start screen now explains both workflows clearly.
+
+Profile working folders (`ModsToMerge`, `CSVToMerge`, and `MergedMods`) are kept under the active profile directory. The final v1.5.0 build also migrates the brief pre-release/broken v1.5.0 root-folder layout automatically when those exact generated defaults are detected, preserving any existing files and removing the obsolete outer folders after a successful migration.
 
 See [CSV PARAM merging](CSVParamMerging.md) for the complete format and priority rules.
 
