@@ -32,19 +32,16 @@ jobs:
             **/*.csproj
             global.json
 
-      - name: Generate Assets.zip
-        shell: pwsh
-        run: ./tools/Build-AssetsArchive.ps1
-
-      - name: Validate regulation assets
-        shell: pwsh
-        run: ./tools/Test-RegulationAssets.ps1
-
       - name: Restore
         run: dotnet restore ERModsMerger.sln
 
       - name: Build
         run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+
+      # The solution build generates Assets.zip once via Directory.Build.targets.
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
 
       - name: Test fast merge semantics
         run: >-

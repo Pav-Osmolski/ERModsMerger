@@ -1,0 +1,46 @@
+name: Regulation Asset Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+    paths:
+      - 'Assets/Regulations/**'
+      - 'tools/Build-AssetsArchive.ps1'
+      - 'tools/Test-RegulationAssets.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regulation-assets-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    name: Verify regulation archive
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout regulation assets
+        uses: actions/checkout@v7
+        with:
+          submodules: false
+          filter: blob:none
+          sparse-checkout: |
+            Assets/Regulations
+            tools
+
+      - name: Generate Assets.zip
+        shell: pwsh
+        run: ./tools/Build-AssetsArchive.ps1
+
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1

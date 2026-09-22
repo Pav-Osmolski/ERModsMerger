@@ -2,17 +2,18 @@
   <PropertyGroup>
     <ERModsMergerAssetsRoot>$(MSBuildThisFileDirectory)Assets</ERModsMergerAssetsRoot>
     <ERModsMergerAssetsArchive>$(ERModsMergerAssetsRoot)\Assets.zip</ERModsMergerAssetsArchive>
+    <ERModsMergerSkipAssets Condition="'$(ERModsMergerSkipAssets)' == ''">false</ERModsMergerSkipAssets>
   </PropertyGroup>
 
   <Target Name="GenerateERModsMergerAssets"
           BeforeTargets="BeforeBuild"
-          Condition="'$(MSBuildProjectName)' == 'ERModsMerger.Core'">
+          Condition="'$(ERModsMergerSkipAssets)' != 'true' And '$(MSBuildProjectName)' == 'ERModsMerger.Core'">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)tools\Build-AssetsArchive.ps1&quot; -AssetsRoot &quot;$(ERModsMergerAssetsRoot)&quot;" />
   </Target>
 
   <Target Name="CopyERModsMergerAssetsToOutput"
           AfterTargets="Build"
-          Condition="'$(MSBuildProjectName)' == 'ERModsMerger' Or '$(MSBuildProjectName)' == 'ERModsManager'">
+          Condition="'$(ERModsMergerSkipAssets)' != 'true' And ('$(MSBuildProjectName)' == 'ERModsMerger' Or '$(MSBuildProjectName)' == 'ERModsManager')">
     <Copy SourceFiles="$(ERModsMergerAssetsArchive)"
           DestinationFiles="$(TargetDir)Assets.zip"
           SkipUnchangedFiles="true" />
@@ -20,7 +21,7 @@
 
   <Target Name="CopyERModsMergerAssetsToPublish"
           AfterTargets="Publish"
-          Condition="'$(MSBuildProjectName)' == 'ERModsMerger' Or '$(MSBuildProjectName)' == 'ERModsManager'">
+          Condition="'$(ERModsMergerSkipAssets)' != 'true' And ('$(MSBuildProjectName)' == 'ERModsMerger' Or '$(MSBuildProjectName)' == 'ERModsManager')">
     <Copy SourceFiles="$(ERModsMergerAssetsArchive)"
           DestinationFiles="$(PublishDir)Assets.zip"
           SkipUnchangedFiles="true" />
