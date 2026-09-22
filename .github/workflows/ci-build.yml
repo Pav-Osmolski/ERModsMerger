@@ -97,7 +97,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Delete cancelled/failed CI history
+      - name: Delete obsolete non-successful Actions history
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -106,24 +106,40 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Successful runs are useful release/debug history. Old non-successful
-          # CI Build runs are just WIP debris once main has validated successfully.
+          now_epoch="$(date -u +%s)"
+          grace_seconds=3600
+
+          # Successful runs are useful release/debug history and are never touched.
+          # Once main is healthy, old CI Build failures/cancellations are WIP debris
+          # and can go immediately. Other workflows get a one-hour diagnostic grace
+          # period before their non-successful runs are pruned.
           gh api --paginate "repos/$REPO/actions/runs?per_page=100" \
             --jq '.workflow_runs[]
-              | select(.name == "CI Build")
               | select(.conclusion == "cancelled"
                     or .conclusion == "failure"
                     or .conclusion == "timed_out"
                     or .conclusion == "startup_failure"
-                    or .conclusion == "skipped")
-              | [.id, .conclusion, .display_title]
+                    or .conclusion == "skipped"
+                    or .conclusion == "stale")
+              | [.id, .name, .conclusion, .created_at, .display_title]
               | @tsv' |
-          while IFS=$'\t' read -r run_id conclusion title; do
+          while IFS=
+
+\t' read -r run_id workflow conclusion created_at title; do
             if [[ -z "${run_id:-}" || "$run_id" == "$CURRENT_RUN_ID" ]]; then
               continue
             fi
 
-            echo "Deleting CI run $run_id ($conclusion): $title"
+            if [[ "$workflow" != "CI Build" ]]; then
+              created_epoch="$(date -u -d "$created_at" +%s)"
+              age_seconds=$((now_epoch - created_epoch))
+              if (( age_seconds < grace_seconds )); then
+                echo "Keeping recent $workflow run $run_id for diagnostics: $title"
+                continue
+              fi
+            fi
+
+            echo "Deleting $workflow run $run_id ($conclusion): $title"
             gh api --method DELETE "repos/$REPO/actions/runs/$run_id"
           done
 
