@@ -44,7 +44,11 @@ jobs:
       - name: Build
         run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
 
-      - name: Run full 34-version migration matrix
+      - name: Run full slow integration and 34-version migration matrix
         env:
           ERMM_FULL_REGULATION_MATRIX: '1'
-        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
+        run: >-
+          dotnet test ERModsMerger.Core.Tests/ERModsMerger.Core.Tests.csproj
+          --configuration Release
+          --no-build
+          --no-restore
