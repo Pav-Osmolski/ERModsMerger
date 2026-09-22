@@ -4,10 +4,11 @@ using Xunit;
 
 namespace ERModsMerger.Core.Tests;
 
+[Trait("Category", "SlowIntegration")]
 public class RegulationEndToEndTests
 {
-    // Fast CI/release coverage: oldest supported regulation, the major
-    // 1.12.1 schema/DLC transition, and the final pre-1.17 regulation.
+    // Representative slow integration coverage: oldest supported regulation,
+    // the major 1.12.1 schema/DLC transition, and the final pre-1.17 regulation.
     // Set ERMM_FULL_REGULATION_MATRIX=1 for the optional exhaustive 34-version sweep.
     private static readonly string[] RepresentativeVersions =
     [
