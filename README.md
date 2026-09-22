@@ -81,7 +81,7 @@ Release/CI packaging uses `tools/Build-ReleasePackage.ps1` to publish both execu
 
 ### Validation and regression coverage
 
-CI runs on Windows with .NET 8, treats maintained-project warnings as errors, validates the complete 34-version regulation archive, and tests every bundled regulation against the version-aware ParamDefs. It also runs semantic merge unit tests plus an end-to-end migration matrix that decrypts historical regulations, creates controlled mod edits, re-encrypts them, migrates them into the current baseline, saves transactionally and reloads the result.
+Routine CI runs on Windows with .NET 8, treats maintained-project warnings as errors, validates the complete 34-version regulation archive metadata/assets, and runs the fast semantic merge + CSV unit tests only. Real encrypted regulation compatibility and end-to-end migration tests are intentionally excluded from routine CI because they dominate runtime. Those slow integration checks, including the exhaustive 34-version migration matrix, remain available through the manual **Deep Regulation Regression** workflow.
 
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
