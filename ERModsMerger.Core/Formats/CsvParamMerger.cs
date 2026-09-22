@@ -68,7 +68,7 @@ namespace ERModsMerger.Core.Formats
                 foreach (string csvPath in source.Files.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 {
                     string paramKey = Path.GetFileNameWithoutExtension(csvPath);
-                    if (!currentVanilla.Params.TryGetValue(paramKey, out SoulsFormats.PARAM? targetParam))
+                    if (!output.Params.TryGetValue(paramKey, out SoulsFormats.PARAM? targetParam))
                     {
                         mainLog.AddSubLog(
                             $"{source.Name}: skipped {Path.GetFileName(csvPath)} because PARAM '{paramKey}' is not present in the current regulation",
@@ -78,6 +78,9 @@ namespace ERModsMerger.Core.Formats
 
                     try
                     {
+                        // Parse against the evolving output, not untouched vanilla. This keeps full
+                        // Smithbox row exports semantic (unchanged fields stay omitted) while allowing
+                        // a higher-priority CSV to explicitly restore a value changed by a lower source.
                         List<ParamRowToMerge> changes = CsvParamImporter.Parse(
                             csvPath,
                             paramKey,
