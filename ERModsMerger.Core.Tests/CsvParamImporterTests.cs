@@ -125,6 +125,56 @@ public class CsvParamImporterTests
     }
 
     [Fact]
+    public void SmithboxEmptyNamePlaceholderColumnIsAccepted()
+    {
+        PARAMDEF def = CreateDef("A");
+        PARAM target = CreateParam(def, Row(def, 1, ("A", 10)));
+        string path = WriteCsv("ID,,A\n1,,99\n");
+
+        try
+        {
+            List<ParamRowToMerge> changes = CsvParamImporter.Parse(path, ParamKey, target);
+            ParamRowToMerge change = Assert.Single(changes);
+
+            ParamCellChange cell = Assert.Single(change.Cells);
+            Assert.Equal("A", cell.Identity.FieldName);
+            Assert.Equal(99, cell.Value);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void AddedRowWithOnlyNameIsPersistedWithParamDefDefaults()
+    {
+        PARAMDEF def = CreateDef("A");
+        PARAM target = CreateParam(def, Row(def, 1, ("A", 10)));
+        string path = WriteCsv("ID,Name\n50,New Row\n");
+
+        try
+        {
+            List<ParamRowToMerge> changes = CsvParamImporter.Parse(path, ParamKey, target);
+            ParamRowToMerge change = Assert.Single(changes);
+
+            Assert.Equal(RowChangeType.Added, change.ChangeType);
+            Assert.Empty(change.Cells);
+
+            HashSet<string> modified = RegulationMergeEngine.ApplyModifiedRows(Params(target), changes);
+
+            Assert.Contains(ParamKey, modified);
+            PARAM.Row added = Assert.Single(target.Rows, row => row.ID == 50);
+            Assert.Equal("New Row", added.Name);
+            Assert.Equal(0, added["A"].Value);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void DuplicateRowIdsAreRejected()
     {
         PARAMDEF def = CreateDef("A");
