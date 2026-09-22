@@ -81,7 +81,7 @@ Release/CI packaging uses `tools/Build-ReleasePackage.ps1` to publish both execu
 
 ### Validation and regression coverage
 
-Routine CI runs on Windows with .NET 8, treats maintained-project warnings as errors, validates the complete 34-version regulation archive metadata/assets, and runs the fast semantic merge + CSV unit tests only. Real encrypted regulation compatibility and end-to-end migration tests are intentionally excluded from routine CI because they dominate runtime. Those slow integration checks, including the exhaustive 34-version migration matrix, remain available through the manual **Deep Regulation Regression** workflow.
+Routine pull-request CI uses a sparse source checkout, the .NET 8 SDK already present on GitHub's Windows runner (verified through `global.json`), a full solution compile with runtime asset packaging disabled, and only the fast semantic merge + CSV unit tests. Main/release builds keep the complete runtime assets and regulation validation. Real encrypted regulation compatibility and end-to-end migration tests remain intentionally isolated in the manual **Deep Regulation Regression** workflow, including the exhaustive 34-version migration matrix.
 
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
