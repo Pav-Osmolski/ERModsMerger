@@ -135,6 +135,8 @@ namespace ERModsMerger.Core.Formats
 
                 if (change.ChangeType == RowChangeType.Added)
                 {
+                    bool insertedRow = false;
+
                     if (targetRow == null)
                     {
                         PARAM.Row? fallbackRow = null;
@@ -171,9 +173,11 @@ namespace ERModsMerger.Core.Formats
                         }
 
                         InsertRowSorted(targetParam.Rows, targetRow);
+                        insertedRow = true;
                     }
 
-                    if (ApplyCells(change, targetRow, log) > 0)
+                    int appliedCells = ApplyCells(change, targetRow, log);
+                    if (insertedRow || appliedCells > 0)
                         modifiedParams.Add(change.ParamKey);
                     continue;
                 }
