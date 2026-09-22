@@ -88,7 +88,7 @@ jobs:
           path: artifacts/release/*.zip
 
   cleanup:
-    name: Prune obsolete CI runs
+    name: Prune non-successful Actions runs
     needs: build
     if: >-
       always() &&
@@ -110,13 +110,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          now_epoch="$(date -u +%s)"
-          grace_seconds=3600
-
           # Successful runs are useful release/debug history and are never touched.
-          # Once main is healthy, old CI Build failures/cancellations are WIP debris
-          # and can go immediately. Other workflows get a one-hour diagnostic grace
-          # period before their non-successful runs are pruned.
+          # Completed non-successful runs are disposable noise once a healthy
+          # validation run reaches this cleanup job.
           gh api --paginate "repos/$REPO/actions/runs?per_page=100" \
             --jq '.workflow_runs[]
               | select(.conclusion == "cancelled"
@@ -130,15 +126,6 @@ jobs:
           while IFS="$(printf '\t')" read -r run_id workflow conclusion created_at title; do
             if [[ -z "${run_id:-}" || "$run_id" == "$CURRENT_RUN_ID" ]]; then
               continue
-            fi
-
-            if [[ "$workflow" != "CI Build" ]]; then
-              created_epoch="$(date -u -d "$created_at" +%s)"
-              age_seconds=$((now_epoch - created_epoch))
-              if (( age_seconds < grace_seconds )); then
-                echo "Keeping recent $workflow run $run_id for diagnostics: $title"
-                continue
-              fi
             fi
 
             echo "Deleting $workflow run $run_id ($conclusion): $title"
