@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: false
 
       - name: Set up .NET 8
         uses: actions/setup-dotnet@v6
@@ -30,19 +30,15 @@ jobs:
             **/*.csproj
             global.json
 
-      - name: Generate Assets.zip
-        shell: pwsh
-        run: ./tools/Build-AssetsArchive.ps1
-
-      - name: Validate regulation assets
-        shell: pwsh
-        run: ./tools/Test-RegulationAssets.ps1
-
       - name: Restore
         run: dotnet restore ERModsMerger.sln
 
       - name: Build
         run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
 
       - name: Run full slow integration and 34-version migration matrix
         env:
