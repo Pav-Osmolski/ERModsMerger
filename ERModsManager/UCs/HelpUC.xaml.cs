@@ -39,7 +39,7 @@ namespace ERModsManager.UCs
         {
             System.Diagnostics.Process.Start(new ProcessStartInfo
             {
-                FileName = "https://github.com/MadTekN1/ERModsMerger",
+                FileName = "https://github.com/Pav-Osmolski/ERModsMerger",
                 UseShellExecute = true
             });
         }
