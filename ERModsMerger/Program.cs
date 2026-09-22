@@ -77,15 +77,9 @@ if (!File.Exists("ERModsMergerConfig\\config.json"))
     ModsMergerConfig.SaveConfig();
     config = ModsMergerConfig.LoadConfig();
 
-    config.CurrentProfile.ModsToMergeFolderPath = "ModsToMerge";
-    config.CurrentProfile.CSVToMergeFolderPath = "CSVToMerge";
-    config.CurrentProfile.MergedModsFolderPath = "MergedMods";
-
-    Directory.CreateDirectory(config.CurrentProfile.ModsToMergeFolderPath);
-    Directory.CreateDirectory(config.CurrentProfile.CSVToMergeFolderPath);
-
-    if(!Directory.Exists(config.CurrentProfile.MergedModsFolderPath))
-        Directory.CreateDirectory(config.CurrentProfile.MergedModsFolderPath);
+    // The default profile owns its working folders under ERModsMergerConfig.
+    // LoadConfig/ProfileConfig already creates them there; do not replace those
+    // paths with root-level folders beside the executable.
 
     //FIRST LAUNCH END INIT
 
@@ -130,14 +124,18 @@ Thread.Sleep(300);
 DialConsole.WriteLine("Let's get this done!\n");
 
 Thread.Sleep(300);
-DialConsole.Write("Copy your mods into the ");
+DialConsole.WriteLine("Choose what you want to merge:");
+
+DialConsole.Write("  Mods: place normal mod folders in ");
 DialConsole.Write("ModsToMerge", ConsoleColor.DarkYellow);
-DialConsole.Write(" folder! ");
+DialConsole.WriteLine(". Keep the usual Elden Ring mod folder structure.");
+
+DialConsole.Write("  CSV PARAMs: place Smithbox-style PARAM CSV files in ");
+DialConsole.Write("CSVToMerge", ConsoleColor.DarkYellow);
+DialConsole.WriteLine(". CSV filenames should match their PARAM names.");
 
 Thread.Sleep(500);
-DialConsole.Write("Just try to respect the mod structure and I'll do my best.\n");
-Thread.Sleep(500);
-DialConsole.WriteLine("You want an example I guess...");
+DialConsole.WriteLine("The two workflows are separate. Use SHOW MOD EXAMPLE for a ModsToMerge layout example.");
 
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("\n\n<<MERGE MODS (M)>>\t<<MERGE CSV PARAMS (C)>>\t<<SHOW MOD EXAMPLE (E)>>");
