@@ -41,12 +41,39 @@
             <Ucs:LogsUC x:Name="MainLogsUC" Margin="0,30,0,70" Visibility="Hidden"/>
             <Ucs:HelpUC x:Name="MainHelpUC" Margin="0,30,0,70" Visibility="Hidden"/>
 
-            <Button x:Name="BtnMerge" VerticalAlignment="Bottom" Margin="30,0,30,15" Cursor="Hand" HorizontalAlignment="Left" Click="BtnMerge_Click">
-                <Label Foreground="{DynamicResource WindowTextBrush}" Margin="15,5,15,5" FontSize="15" FontFamily="Liberation Sans" FontWeight="Bold">Merge</Label>
-            </Button>
-            <Button x:Name="BtnPlay" VerticalAlignment="Bottom" Margin="30,0,30,15" Cursor="Hand" HorizontalAlignment="Right" Click="BtnPlay_Click">
-                <Label Foreground="{DynamicResource WindowTextBrush}" Margin="15,5,15,5" FontSize="15" FontFamily="Liberation Sans" FontWeight="Bold">Play Elden Ring Modded</Label>
-            </Button>
+            <Grid VerticalAlignment="Bottom" Margin="20,0,20,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BtnMerge"
+                        Grid.Column="0"
+                        Margin="0,0,8,0"
+                        Cursor="Hand"
+                        Click="BtnMerge_Click"
+                        ToolTip="Merge enabled mods from ModsToMerge using the normal mod priority rules.">
+                    <Label Foreground="{DynamicResource WindowTextBrush}" Margin="10,5" FontSize="13" FontFamily="Liberation Sans" FontWeight="Bold">Merge Mods</Label>
+                </Button>
+
+                <Button x:Name="BtnMergeCsv"
+                        Grid.Column="1"
+                        Margin="0,0,8,0"
+                        Cursor="Hand"
+                        Click="BtnMergeCsv_Click"
+                        ToolTip="Merge Smithbox-style PARAM CSV files from CSVToMerge into the verified vanilla regulation.bin.">
+                    <Label Foreground="{DynamicResource WindowTextBrush}" Margin="10,5" FontSize="13" FontFamily="Liberation Sans" FontWeight="Bold">Merge CSV Params</Label>
+                </Button>
+
+                <Button x:Name="BtnPlay"
+                        Grid.Column="2"
+                        Cursor="Hand"
+                        HorizontalAlignment="Right"
+                        Click="BtnPlay_Click">
+                    <Label Foreground="{DynamicResource WindowTextBrush}" Margin="10,5" FontSize="13" FontFamily="Liberation Sans" FontWeight="Bold">Play Elden Ring Modded</Label>
+                </Button>
+            </Grid>
         </Grid>
 
         <!-- Window Control buttons (help, settings, minimize, maximize, close)-->
