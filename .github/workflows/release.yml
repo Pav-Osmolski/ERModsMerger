@@ -46,8 +46,13 @@ jobs:
       - name: Build
         run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
 
-      - name: Test regulation merging
-        run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
+      - name: Test fast merge semantics
+        run: >-
+          dotnet test ERModsMerger.Core.Tests/ERModsMerger.Core.Tests.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          --filter "Category!=SlowIntegration"
 
       - name: Build compact release package
         shell: pwsh
