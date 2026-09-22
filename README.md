@@ -15,7 +15,7 @@ v1.5.0 adds a second regulation workflow for PARAM changes distributed as Smithb
 - Removed/unknown fields are warned and skipped rather than shifting positional data.
 - Cross-CSV PARAM conflicts reuse the existing semantic conflict tracker and deterministic priority rules.
 - Output is written transactionally to `MergedMods\regulation.bin`.
-- Manager: **Merge Mods** and **Merge CSV Params** are separate actions.
+- Manager: **Merge Mods** and **Merge CSV** are separate actions.
 - Console automation: `/mergecsv`.
 
 [CSV PARAM merging documentation](Documentation/CSVParamMerging.md)
@@ -95,7 +95,7 @@ ERModsMerger can merge conflicting regulation.bin files and can also build a reg
 - If the app ask you the game path at launch, just navigate to where eldenring.exe is.
 - The fun part now, drag and drop your mods (can be .zip or folder) directly in the app (don't worry, the app will most likely handle it)
 - Then define mods priority by dragging them up or down in the list (top is highest)
-- Press **Merge Mods** for the normal mod workflow, or place PARAM CSV exports in the active profile's `CSVToMerge` folder and use **Merge CSV Params**.
+- Press **Merge Mods** for the normal mod workflow, or place PARAM CSV exports in the active profile's `CSVToMerge` folder and use **Merge CSV**.
 - Press Play & Enjoy!
 
 # Elden Ring Mods Merger (Console App)
