@@ -63,7 +63,7 @@
                         Cursor="Hand"
                         Click="BtnMergeCsv_Click"
                         ToolTip="Merge Smithbox-style PARAM CSV files from CSVToMerge into the verified vanilla regulation.bin.">
-                    <Label Foreground="{DynamicResource WindowTextBrush}" Margin="10,5" FontSize="13" FontFamily="Liberation Sans" FontWeight="Bold">Merge CSV Params</Label>
+                    <Label Foreground="{DynamicResource WindowTextBrush}" Margin="10,5" FontSize="13" FontFamily="Liberation Sans" FontWeight="Bold">Merge CSV</Label>
                 </Button>
 
                 <Button x:Name="BtnPlay"
