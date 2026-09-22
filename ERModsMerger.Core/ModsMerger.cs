@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.IO;
 using ERModsMerger.Core.Utility;
+using ERModsMerger.Core.Formats;
 
 namespace ERModsMerger.Core
 {
@@ -131,6 +132,33 @@ namespace ERModsMerger.Core
 
             OnMergeFinish(true);
         }
+
+        public static void StartCsvMerge()
+        {
+            ModsMergerConfig? config = ModsMergerConfig.LoadedConfig;
+            if (config?.CurrentProfile == null)
+            {
+                LOG.Log("Could not merge CSV params because no profile is loaded.", LOGTYPE.ERROR);
+                OnMergeFinish(false);
+                return;
+            }
+
+            config.CurrentProfile.EnsureFolders();
+
+            bool success;
+            try
+            {
+                success = CsvParamMerger.MergeFolder();
+            }
+            catch (Exception ex)
+            {
+                LOG.Log($"CSV PARAM merge failed: {ex.Message}", LOGTYPE.ERROR);
+                success = false;
+            }
+
+            OnMergeFinish(success);
+        }
+
 
         public delegate void MergeFinishEventHandler(bool finished);
 
