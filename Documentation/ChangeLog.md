@@ -1,6 +1,6 @@
 # Change Log
 
-All notable ERModsMerger changes are recorded here. GitHub Issues are used for active bugs, feedback and future work.
+All notable ERModsMerger changes are recorded here. Current limitations and future ideas are kept separately in [Feedback and Roadmap](Feedback-and-Roadmap.md).
 
 ## v1.5.0 - 2026-09-22
 
