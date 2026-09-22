@@ -4,20 +4,38 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '**/*.md'
+      - 'Documentation/**'
   pull_request:
     branches:
       - main
+    # Avoid a CI run for every WIP commit. Draft PRs stay quiet; validation runs
+    # when a PR is opened ready, reopened, or explicitly marked ready for review.
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+    paths-ignore:
+      - '**/*.md'
+      - 'Documentation/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Runs are intentionally queued instead of cancelling one another. With PR
+  # validation gated to meaningful lifecycle events there should be no WIP spam,
+  # and completed main-branch validation history remains useful.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
+    # A draft PR opened through the GitHub UI can still emit an "opened" event.
+    # Skip the job until the PR is marked ready; direct/main/manual runs always run.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: Build .NET 8 solution
     runs-on: windows-latest
 
@@ -53,16 +71,18 @@ jobs:
       - name: Test semantic regulation merging
         run: dotnet test ERModsMerger.sln --configuration Release --no-build --no-restore
 
+      # PR validation only needs to prove the code builds/tests. Package generation
+      # is reserved for main/manual runs where the artifact is actually useful.
       - name: Build compact CI package
-        if: success()
+        if: success() && github.event_name != 'pull_request'
         shell: pwsh
         run: ./tools/Build-ReleasePackage.ps1 -VersionLabel "ci-${{ github.sha }}"
 
       - name: Upload compiled package
-        if: success()
+        if: success() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: ERModsMerger-build-${{ github.sha }}
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
           path: artifacts/release/*.zip
