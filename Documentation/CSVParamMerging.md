@@ -73,6 +73,8 @@ Top-level source folders are processed using the same deterministic console conv
 
 Alphabetically earlier source names have higher priority because they are processed last.
 
+CSV sources are applied low-to-high against the evolving output regulation. This keeps full Smithbox row exports semantic: values that already match the accumulated output are ignored, while an explicit value in a higher-priority CSV can still override an earlier source, including restoring a field to its vanilla value.
+
 If two CSV sources change the same PARAM / row ID / field to different values, ERModsMerger logs the conflict and the higher-priority source wins.
 
 A single CSV file may not contain the same row ID more than once; duplicate row IDs are rejected as ambiguous.
