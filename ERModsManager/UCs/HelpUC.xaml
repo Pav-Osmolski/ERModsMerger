@@ -34,7 +34,7 @@
 
                 <Label Foreground="{DynamicResource WindowTextBrush}" FontSize="17" FontWeight="Bold" Margin="0,10,0,8">CSV PARAM Merge</Label>
                 <TextBlock Foreground="{DynamicResource WindowTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,0,4,12">
-                    Put Smithbox-exported PARAM CSV files in the active profile's CSVToMerge folder, then click Merge CSV Params.
+                    Put Smithbox-exported PARAM CSV files in the active profile's CSVToMerge folder, then click Merge CSV.
                     Use ParamName.csv filenames such as EquipParamWeapon.csv. CSVs may be placed directly in CSVToMerge or grouped
                     into top-level source folders. When sources conflict, alphabetically earlier folder names have higher priority.
                     Only CSV columns that are present and non-blank are applied. Existing rows are modified and missing row IDs are added.
