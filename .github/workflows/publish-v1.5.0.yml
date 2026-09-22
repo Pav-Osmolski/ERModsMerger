@@ -1,0 +1,83 @@
+name: Publish v1.5.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/publish-v1.5.0.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish v1.5.0
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ae4d6250d8372ed2fb6072e1ddf6d88c3a930655
+          submodules: recursive
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            global.json
+
+      - name: Restore
+        run: dotnet restore ERModsMerger.sln
+
+      - name: Build
+        run: dotnet build ERModsMerger.sln --configuration Release --no-restore --warnaserror
+
+      - name: Validate regulation assets
+        shell: pwsh
+        run: ./tools/Test-RegulationAssets.ps1
+
+      - name: Test fast merge semantics
+        run: >-
+          dotnet test ERModsMerger.Core.Tests/ERModsMerger.Core.Tests.csproj
+          --configuration Release
+          --no-build
+          --no-restore
+          --filter "Category!=SlowIntegration"
+
+      - name: Build release package
+        shell: pwsh
+        run: ./tools/Build-ReleasePackage.ps1 -VersionLabel "v1.5.0"
+
+      - name: Publish tag and GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ae4d6250d8372ed2fb6072e1ddf6d88c3a930655
+        run: |
+          set -euo pipefail
+          gh release create v1.5.0 \
+            "artifacts/release/ERModsMerger-v1.5.0-win-x64.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "ERModsMerger v1.5.0" \
+            --notes-file "Documentation/ReleaseNotes-v1.5.0.md" \
+            --latest
+
+      - name: Remove one-shot publisher
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/publish-v1.5.0.yml?ref=main" --jq '.sha')"
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/contents/.github/workflows/publish-v1.5.0.yml" \
+            -f message="Remove one-shot v1.5.0 publisher" \
+            -f sha="$workflow_sha" \
+            -f branch="main"
