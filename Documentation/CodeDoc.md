@@ -124,6 +124,73 @@ It reports unreadable regulations, unsupported versions and missing exact-versio
 
 `RegulationStatusService` exposes a lightweight version/baseline summary to the WPF manager so users can see the installed regulation, selected mod versions and migration readiness before starting a merge.
 
+## CSV PARAM merging
+
+The CSV pipeline is intentionally an adapter over the existing semantic regulation engine rather than a separate merge implementation.
+
+### `CsvParamImporter`
+
+`CsvParamImporter` parses Smithbox-style PARAM CSV files:
+
+```text
+ID,Name,<InternalName>,<InternalName>,...
+```
+
+The CSV filename supplies the PARAM key (for example `EquipParamWeapon.csv` -> `EquipParamWeapon`).
+
+The importer:
+
+- detects comma, semicolon or tab delimiters;
+- requires an `ID` column;
+- accepts an optional `Name` column;
+- resolves fields by ParamDef `InternalName` plus duplicate-name occurrence;
+- ignores blank cells;
+- skips/warns fields absent from the current ParamDef;
+- converts Smithbox `dummy8` values from `[1|2|3]` format;
+- creates `ParamRowToMerge` objects for modified or added rows;
+- rejects duplicate row IDs within a single CSV.
+
+For existing rows, unchanged values are omitted from the semantic change set.
+
+For new row IDs, conversion is performed against the current ParamDef. The merge engine then creates the row from the current schema so fields not provided by the CSV keep current defaults.
+
+### `CsvParamMerger`
+
+`CsvParamMerger.MergeFolder()` is the CSV-only regulation pipeline.
+
+It:
+
+1. verifies the installed `regulation.bin` version and SHA-256 against the manifest;
+2. loads current vanilla as both the comparison/fallback source and initial output;
+3. discovers all `*.csv` files under the active profile's `CSVToMerge` folder;
+4. groups files by top-level source folder;
+5. parses each file through `CsvParamImporter`;
+6. runs the resulting changes through `RegulationConflictTracker`;
+7. applies them through `RegulationMergeEngine`;
+8. saves `MergedMods\regulation.bin` transactionally.
+
+Alphabetically earlier top-level source folders have higher priority because sources are processed in descending name order and later changes win.
+
+CSV row deletion is deliberately unsupported in v1.5.0. Normal `regulation.bin` merging remains the authoritative path for deletions.
+
+### Profile/config integration
+
+Each `ProfileConfig` contains:
+
+```text
+ModsToMerge/
+CSVToMerge/
+MergedMods/
+```
+
+`ProfileConfig.EnsureFolders()` also migrates older profiles that predate `CSVToMergeFolderPath`.
+
+`ModsMerger.StartCsvMerge()` exposes CSV merging to the WPF manager and console application.
+
+The manager provides a separate **Merge CSV Params** action. The console exposes `/mergecsv`.
+
+See [CSVParamMerging.md](CSVParamMerging.md) for user-facing behaviour.
+
 ## Regulation assets
 
 The maintained source of truth is:
@@ -196,12 +263,12 @@ Tags matching `v*` invoke `.github/workflows/release.yml`, which repeats the ful
 
 ### ERModsMerger
 
-The console application delegates merge work to Core. It also supports the `/merge` automation argument.
+The console application delegates merge work to Core. It supports `/merge` for normal mods and `/mergecsv` for CSV PARAM imports.
 
 ### ERModsManager
 
-The WPF application provides profiles, drag-and-drop mod management, priority ordering, logs, configuration and regulation readiness information.
+The WPF application provides profiles, drag-and-drop mod management, priority ordering, logs, configuration, regulation readiness information, and separate **Merge Mods** / **Merge CSV Params** actions.
 
 ## Credits
 
-The multi-version regulation support, historical compatibility work, validation/hardening and modern release pipeline in this fork were developed by **DeViLhoOD**.
+The multi-version regulation support, CSV PARAM merge pipeline, historical compatibility work, validation/hardening and modern release pipeline in this fork were developed by **DeViLhoOD**.

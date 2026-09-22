@@ -31,6 +31,16 @@ namespace ERModsMerger
                 goto End;
             }
 
+            if (arguments.Contains("/mergecsv"))
+            {
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
+                Console.WriteLine("Welcome to Elden Ring Mods Merger - CSV PARAM Merge!\n");
+                Console.ResetColor();
+
+                ModsMerger.StartCsvMerge();
+                goto End;
+            }
+
  
 
             DialConsole.WriteLine("Welcome to Elden Ring Mods Merger!\n", ConsoleColor.DarkYellow);
@@ -68,9 +78,11 @@ if (!File.Exists("ERModsMergerConfig\\config.json"))
     config = ModsMergerConfig.LoadConfig();
 
     config.CurrentProfile.ModsToMergeFolderPath = "ModsToMerge";
+    config.CurrentProfile.CSVToMergeFolderPath = "CSVToMerge";
     config.CurrentProfile.MergedModsFolderPath = "MergedMods";
 
     Directory.CreateDirectory(config.CurrentProfile.ModsToMergeFolderPath);
+    Directory.CreateDirectory(config.CurrentProfile.CSVToMergeFolderPath);
 
     if(!Directory.Exists(config.CurrentProfile.MergedModsFolderPath))
         Directory.CreateDirectory(config.CurrentProfile.MergedModsFolderPath);
@@ -128,7 +140,7 @@ Thread.Sleep(500);
 DialConsole.WriteLine("You want an example I guess...");
 
 Console.ForegroundColor = ConsoleColor.Cyan;
-Console.WriteLine("\n\n<<NO I'M READY, MERGE MY SH*T! (Press 'M')>>\t\t<<YES I WANT AN EXAMPLE (Press 'E')>>");
+Console.WriteLine("\n\n<<MERGE MODS (M)>>\t<<MERGE CSV PARAMS (C)>>\t<<SHOW MOD EXAMPLE (E)>>");
 //Console.WriteLine("<<MERGE WITH MANUAL CONFLICTS RESOLVING (Press 'A')>>");
 Console.ResetColor();
 
@@ -181,7 +193,7 @@ if(keyPressed == 'e' || keyPressed == 'E')
 
     DialConsole.WriteLine("\nPress 'M' when you're ready for the merge!");
     Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("\n\n<<I'M READY, MERGE MY SH*T! (Press 'M')>>");
+    Console.WriteLine("\n\n<<MERGE MODS (M)>>\t<<MERGE CSV PARAMS (C)>>");
     Console.ResetColor();
 
     var kchar = Console.ReadKey(true).KeyChar;
@@ -190,6 +202,14 @@ if(keyPressed == 'e' || keyPressed == 'E')
         Thread.Sleep(500);
         DialConsole.WriteLine("\nLet's go! MERGE!\n\n");
         ModsMerger.StartMerge();
+        DialConsole.WriteLine("\n\nIt's over, press any key to quit!");
+        Console.ReadKey();
+    }
+    else if (kchar == 'c' || kchar == 'C')
+    {
+        Thread.Sleep(500);
+        DialConsole.WriteLine("\nLet's go! MERGE CSV PARAMS!\n\n");
+        ModsMerger.StartCsvMerge();
         DialConsole.WriteLine("\n\nIt's over, press any key to quit!");
         Console.ReadKey();
     }
@@ -205,6 +225,14 @@ else if(keyPressed == 'm'|| keyPressed == 'M')
     Thread.Sleep(500);
     DialConsole.WriteLine("\nLet's go! MERGE!\n\n");
     ModsMerger.StartMerge();
+    DialConsole.WriteLine("\n\nIt's over, press any key to quit!");
+    Console.ReadKey();
+}
+else if(keyPressed == 'c' || keyPressed == 'C')
+{
+    Thread.Sleep(500);
+    DialConsole.WriteLine("\nLet's go! MERGE CSV PARAMS!\n\n");
+    ModsMerger.StartCsvMerge();
     DialConsole.WriteLine("\n\nIt's over, press any key to quit!");
     Console.ReadKey();
 }
@@ -227,6 +255,7 @@ else if (keyPressed == 'a' || keyPressed == 'A')
                 DialConsole.WriteLine("Current config:");
                 DialConsole.WriteLine("Game Path:\t\t" + ModsMergerConfig.LoadedConfig.GamePath);
                 DialConsole.WriteLine("Mods to be merged:\t" + ModsMergerConfig.LoadedConfig.CurrentProfile.ModsToMergeFolderPath);
+                DialConsole.WriteLine("CSV params to merge:\t" + ModsMergerConfig.LoadedConfig.CurrentProfile.CSVToMergeFolderPath);
                 DialConsole.WriteLine("Merged mods:\t\t" + ModsMergerConfig.LoadedConfig.CurrentProfile.MergedModsFolderPath);
                 Console.WriteLine();
 

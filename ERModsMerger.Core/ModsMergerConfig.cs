@@ -37,6 +37,9 @@ namespace ERModsMerger.Core
                         LoadedConfig.CurrentProfile = mainProfile;
                     }
 
+                    foreach (ProfileConfig profile in LoadedConfig.Profiles)
+                        profile.EnsureFolders();
+
                     CheckAndAddEnvVars();
                     CheckVersionAndEmbeddedExtraction();
                     return LoadedConfig;
@@ -229,6 +232,8 @@ namespace ERModsMerger.Core
 
         public string MergedModsFolderPath { get; set; }
 
+        public string CSVToMergeFolderPath { get; set; }
+
         public List<ModConfig> Mods { get; set; }
 
         public bool Modified { get; set; }
@@ -239,23 +244,31 @@ namespace ERModsMerger.Core
             ProfileDir = profileDir;
 
             ModsToMergeFolderPath = profileDir + "\\ModsToMerge";
+            CSVToMergeFolderPath = profileDir + "\\CSVToMerge";
             MergedModsFolderPath = profileDir + "\\MergedMods";
 
-            if (!Directory.Exists(ProfileDir))
-                Directory.CreateDirectory(ProfileDir);
-
-            if (!Directory.Exists(ModsToMergeFolderPath))
-                Directory.CreateDirectory(ModsToMergeFolderPath);
-
-            if (!Directory.Exists(MergedModsFolderPath))
-                Directory.CreateDirectory(MergedModsFolderPath);
-
+            EnsureFolders();
 
             Mods = new List<ModConfig>();
             Modified = true;
         }
 
        
+
+        public void EnsureFolders()
+        {
+            if (string.IsNullOrWhiteSpace(ModsToMergeFolderPath))
+                ModsToMergeFolderPath = Path.Combine(ProfileDir, "ModsToMerge");
+            if (string.IsNullOrWhiteSpace(CSVToMergeFolderPath))
+                CSVToMergeFolderPath = Path.Combine(ProfileDir, "CSVToMerge");
+            if (string.IsNullOrWhiteSpace(MergedModsFolderPath))
+                MergedModsFolderPath = Path.Combine(ProfileDir, "MergedMods");
+
+            Directory.CreateDirectory(ProfileDir);
+            Directory.CreateDirectory(ModsToMergeFolderPath);
+            Directory.CreateDirectory(CSVToMergeFolderPath);
+            Directory.CreateDirectory(MergedModsFolderPath);
+        }
 
         public void Delete()
         {
