@@ -86,3 +86,44 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: artifacts/release/*.zip
+
+  cleanup:
+    name: Prune obsolete CI runs
+    needs: build
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Delete cancelled/failed CI history
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          # Successful runs are useful release/debug history. Old non-successful
+          # CI Build runs are just WIP debris once main has validated successfully.
+          gh api --paginate "repos/$REPO/actions/runs?per_page=100" \
+            --jq '.workflow_runs[]
+              | select(.name == "CI Build")
+              | select(.conclusion == "cancelled"
+                    or .conclusion == "failure"
+                    or .conclusion == "timed_out"
+                    or .conclusion == "startup_failure"
+                    or .conclusion == "skipped")
+              | [.id, .conclusion, .display_title]
+              | @tsv' |
+          while IFS=$'\t' read -r run_id conclusion title; do
+            if [[ -z "${run_id:-}" || "$run_id" == "$CURRENT_RUN_ID" ]]; then
+              continue
+            fi
+
+            echo "Deleting CI run $run_id ($conclusion): $title"
+            gh api --method DELETE "repos/$REPO/actions/runs/$run_id"
+          done
+
