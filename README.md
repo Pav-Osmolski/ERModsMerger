@@ -1,7 +1,24 @@
 [![CI Build](https://github.com/Pav-Osmolski/ERModsMerger/actions/workflows/ci-build.yml/badge.svg?branch=main)](https://github.com/Pav-Osmolski/ERModsMerger/actions/workflows/ci-build.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/Pav-Osmolski/ERModsMerger?display_name=tag&sort=semver)](https://github.com/Pav-Osmolski/ERModsMerger/releases/latest)
 
-This fork updates ERModsMerger for current Elden Ring versions and adds safer multi-version regulation merging.
+This fork updates ERModsMerger for current Elden Ring versions with safe multi-version regulation merging and Smithbox-compatible CSV PARAM importing.
+
+## v1.5.0 WIP: CSV PARAM merging
+
+v1.5.0 adds a second regulation workflow for PARAM changes distributed as Smithbox-style CSV files.
+
+- Every profile gets a new `CSVToMerge` folder.
+- Drop `<ParamName>.csv` exports such as `EquipParamWeapon.csv` or `SpEffectParam.csv` directly into the folder, or organise them under top-level source folders.
+- Supports comma, semicolon and tab separators.
+- Existing rows only change fields explicitly present and non-blank in the CSV.
+- Missing row IDs are added using the **current** ParamDef so newer fields retain safe defaults.
+- Removed/unknown fields are warned and skipped rather than shifting positional data.
+- Cross-CSV PARAM conflicts reuse the existing semantic conflict tracker and deterministic priority rules.
+- Output is written transactionally to `MergedMods\regulation.bin`.
+- Manager: **Merge Mods** and **Merge CSV Params** are separate actions.
+- Console automation: `/mergecsv`.
+
+[CSV PARAM merging documentation](Documentation/CSVParamMerging.md)
 
 ## v1.4.0 highlights
 
@@ -69,7 +86,7 @@ CI runs on Windows with .NET 8, treats maintained-project warnings as errors, va
 # Elden Ring Mods Manager - Merger
 Simple tool to manage and merge Elden Ring mods. Work In Progress.
 
-Can only merge regulation.bin files for now (every other files will be overwrited depending of priority order), more merging capabilities will be added in the future.
+ERModsMerger can merge conflicting regulation.bin files and can also build a regulation.bin from Smithbox-style PARAM CSV exports. Other conflicting game files are still overwritten according to priority.
 
 ## Usage
 
@@ -78,7 +95,7 @@ Can only merge regulation.bin files for now (every other files will be overwrite
 - If the app ask you the game path at launch, just navigate to where eldenring.exe is.
 - The fun part now, drag and drop your mods (can be .zip or folder) directly in the app (don't worry, the app will most likely handle it)
 - Then define mods priority by dragging them up or down in the list (top is highest)
-- Press Merge and wait the logs telling you the merge is done.
+- Press **Merge Mods** for the normal mod workflow, or place PARAM CSV exports in the active profile's `CSVToMerge` folder and use **Merge CSV Params**.
 - Press Play & Enjoy!
 
 # Elden Ring Mods Merger (Console App)
@@ -106,6 +123,7 @@ Launch ERModsMerger.exe and let it guide you through the process, it will self e
 	{
 	  "GamePath": "C:\\New\\path\\to the folder of\\ELDEN RING\\Game",
 	  "ModsToMergeFolderPath": "ModsToMerge",
+	  "CSVToMergeFolderPath": "CSVToMerge",
 	  "MergedModsFolderPath": "MergedMods"
 	}
 	```
@@ -120,14 +138,14 @@ For now it's better to use this tool to merge mods who only have conflicting reg
 
 ## Automation
 
-Run the console app with /merge argument to automatically merge mods located inside ModsToMerge to MergedMods folder, no user interaction will be asked and the console will close after the merge.﻿﻿
+Run the console app with `/merge` to automatically merge normal mods from `ModsToMerge`. Use `/mergecsv` to merge Smithbox-style PARAM CSV files from `CSVToMerge` into `MergedMods\\regulation.bin`.
 
 ## Contributing
 
 If you wish to contribute to this project, you are very welcome. The [code documentation](Documentation/CodeDoc.md) explains the current architecture, multi-version regulation pipeline, asset maintenance, testing and release workflow. Enjoy coding :)
 
 ## Credits & Thanks
-* **DeViLhoOD** - multi-version regulation support, historical compatibility work, merge hardening, validation, CI/release improvements and ongoing maintenance of this fork.
+* **DeViLhoOD** - multi-version regulation support, CSV PARAM merging, historical compatibility work, merge hardening, validation, CI/release improvements and ongoing maintenance of this fork.
 * [SoulsMods](https://github.com/soulsmods)
 * [Smithbox](https://github.com/vawser/Smithbox)
 * [Nordgaren](https://github.com/Nordgaren)
