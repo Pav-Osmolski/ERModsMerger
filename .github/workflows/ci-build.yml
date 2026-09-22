@@ -90,7 +90,11 @@ jobs:
   cleanup:
     name: Prune obsolete CI runs
     needs: build
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -138,6 +142,13 @@ jobs:
             fi
 
             echo "Deleting $workflow run $run_id ($conclusion): $title"
-            gh api --method DELETE "repos/$REPO/actions/runs/$run_id"
+            if gh api --silent --method DELETE "repos/$REPO/actions/runs/$run_id"; then
+              echo "Deleted run $run_id"
+            else
+              # Some legacy runs from already-removed workflow definitions can
+              # return 404 even though they still appear in the run listing.
+              # Do not let one undeletable record block cleanup of the rest.
+              echo "Could not delete run $run_id; continuing"
+            fi
           done
 
