@@ -94,6 +94,34 @@ public class CsvParamImporterTests
     }
 
     [Fact]
+    public void HigherPriorityCsvCanRestoreValueChangedByLowerPriorityCsv()
+    {
+        PARAMDEF def = CreateDef("A");
+        PARAM target = CreateParam(def, Row(def, 1, ("A", 10)));
+        string lowerPath = WriteCsv("ID,Name,A\n1,Row 1,99\n");
+        string higherPath = WriteCsv("ID,Name,A\n1,Row 1,10\n");
+
+        try
+        {
+            List<ParamRowToMerge> lowerChanges = CsvParamImporter.Parse(lowerPath, ParamKey, target);
+            RegulationMergeEngine.ApplyModifiedRows(Params(target), lowerChanges);
+            Assert.Equal(99, target.Rows[0]["A"].Value);
+
+            List<ParamRowToMerge> higherChanges = CsvParamImporter.Parse(higherPath, ParamKey, target);
+            ParamCellChange reset = Assert.Single(Assert.Single(higherChanges).Cells);
+            Assert.Equal(10, reset.Value);
+
+            RegulationMergeEngine.ApplyModifiedRows(Params(target), higherChanges);
+            Assert.Equal(10, target.Rows[0]["A"].Value);
+        }
+        finally
+        {
+            File.Delete(lowerPath);
+            File.Delete(higherPath);
+        }
+    }
+
+    [Fact]
     public void UnknownColumnIsWarnedAndIgnored()
     {
         PARAMDEF def = CreateDef("A");
